@@ -42,6 +42,8 @@ GitHub Pages で配信し、Google Apps Script (GAS) 経由で Google スプレ�
 3. 設定：
    - 次のユーザーとして実行： **自分**
    - アクセスできるユーザー： **全員**
+     （`Googleアカウントを持つ全員` ではなく `全員`。前者はログインを要求するため、
+     ブラウザからの匿名 POST が弾かれる。`gas/appsscript.json` の `ANYONE_ANONYMOUS` に対応）
 4. **デプロイ** を押し、表示された `https://script.google.com/macros/s/.../exec` という URL を控える
 
 > 「全員」にするのは、ブラウザから認証なしで POST するため。
@@ -49,6 +51,9 @@ GitHub Pages で配信し、Google Apps Script (GAS) 経由で Google スプレ�
 > ブラウザでこの URL を直接開くと `{"ok":true,...}` が返れば疎通 OK。
 
 **コードを修正したら、毎回「デプロイ → デプロイを管理 → 編集（鉛筆）→ バージョン: 新バージョン → デプロイ」が必要。** これを忘れると古いコードが動き続ける。
+
+（デプロイ手順の出典: [Web Apps | Apps Script](https://developers.google.com/apps-script/guides/web) /
+[Web apps and API executables manifest resource](https://developers.google.com/apps-script/manifest/web-app-api-executable)）
 
 ### 3. GitHub Pages で公開する
 
