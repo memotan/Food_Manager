@@ -1,0 +1,19 @@
+{
+  "name": "食品管理",
+  "short_name": "食品管理",
+  "description": "冷蔵・冷凍・常温の食品の期限と在庫を管理するPWA",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%2343a047'/><text x='96' y='132' font-size='96' text-anchor='middle'>🥗</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

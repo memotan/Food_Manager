@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111111">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="食品管理">
+<title>食品管理</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#111;--surface:#1e1e1e;--surface2:#2a2a2a;
+  --text:#f0f0f0;--text2:#aaa;--text3:#666;--text4:#444;
+  --border:#2a2a2a;
+  --accent:#43a047;--accent2:#2e7d32;
+  --danger:#e53935;--danger-bg:#3b1010;--danger-fg:#ef9a9a;
+  --warn:#fb8c00;--warn-bg:#3b2100;--warn-fg:#ffcc80;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'Helvetica Neue',sans-serif;overflow:hidden}
+
+#app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto;position:relative}
+#mainScreen{display:flex;flex-direction:column;height:100%}
+
+.header{padding:calc(16px + var(--safe-top)) 16px 8px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.header h1{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.hicons{display:flex;gap:18px;color:var(--text2);font-size:20px}
+.hicons i{cursor:pointer;padding:4px}
+
+.tabs{display:flex;gap:4px;padding:0 16px 12px;flex-shrink:0}
+.tab{position:relative;padding:6px 16px;border-radius:20px;font-size:14px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:inherit;transition:all .15s}
+.tab.active{background:var(--text);color:var(--bg);font-weight:500}
+.tab .tbadge{position:absolute;top:-2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--danger);color:#fff;font-size:10px;line-height:16px;font-weight:600}
+
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.food-list{padding:0 16px 8px;display:flex;flex-direction:column;gap:8px}
+
+.food-card{
+  background:var(--surface);border-radius:14px;padding:13px 14px;
+  display:flex;align-items:center;gap:12px;
+  border-left:3px solid var(--text4);
+  transition:opacity .15s,background .15s;user-select:none
+}
+.food-card.expired{border-left-color:var(--danger)}
+.food-card.soon{border-left-color:var(--warn)}
+.food-card.pending{opacity:.5}
+
+.fbody{flex:1;min-width:0}
+.fname{font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fqty{font-size:12px;color:var(--text3);margin-left:6px}
+.fmeta{font-size:12px;color:var(--text3);margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
+.fkind{color:var(--text2)}
+
+.badge{flex-shrink:0;font-size:11px;font-weight:600;padding:4px 10px;border-radius:10px;background:var(--surface2);color:var(--text2);white-space:nowrap}
+.badge.expired{background:var(--danger-bg);color:var(--danger-fg)}
+.badge.soon{background:var(--warn-bg);color:var(--warn-fg)}
+
+.sec-label{padding:16px 16px 6px;font-size:12px;color:var(--text4);text-transform:uppercase;letter-spacing:.08em}
+.empty-state{text-align:center;color:var(--text4);font-size:14px;padding:56px 16px;line-height:1.8}
+
+.bottom-bar{flex-shrink:0;padding:10px 16px calc(10px + var(--safe-bottom));border-top:1px solid var(--border);background:var(--bg)}
+.add-btn{width:100%;padding:14px;border-radius:14px;background:var(--accent);border:none;color:#fff;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.add-btn:active{background:var(--accent2)}
+
+.sync-row{display:flex;align-items:center;gap:8px;padding:8px 0 0}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--text4);flex-shrink:0;transition:background .3s}
+.sdot.ok{background:var(--accent)}.sdot.err{background:var(--danger)}
+.sdot.busy{background:var(--warn);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.smsg{font-size:12px;color:var(--text3);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== 設定画面 ===== */
+.settings-screen{display:none;flex-direction:column;height:100%}
+.settings-screen.active{display:flex}
+.s-header{padding:calc(16px + var(--safe-top)) 16px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.s-back{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px}
+.s-header h2{font-size:18px;font-weight:500}
+.s-body{flex:1;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom))}
+.s-body p{font-size:13px;color:var(--text3);line-height:1.7;margin-bottom:20px}
+.flabel{font-size:12px;color:var(--text2);margin-bottom:6px;display:block}
+.s-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;margin-bottom:16px;transition:border-color .15s}
+.s-input:focus{border-color:var(--text4)}
+.s-input::placeholder{color:var(--text4)}
+.s-btn{width:100%;padding:14px;border-radius:12px;background:var(--accent);border:none;color:#fff;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;margin-bottom:10px;transition:background .15s}
+.s-btn:active{background:var(--accent2)}
+.s-btn.sec{background:var(--surface);color:var(--text2);border:1px solid var(--border)}
+.s-err{font-size:13px;color:var(--danger);margin-top:4px;min-height:18px}
+.s-note{font-size:12px;color:var(--text4);line-height:1.7;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* ===== トースト ===== */
+.toast{position:fixed;bottom:calc(88px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:var(--text2);font-size:13px;padding:8px 16px;border-radius:20px;opacity:0;transition:all .3s;pointer-events:none;max-width:90%;text-align:center;z-index:300}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ===== モーダル（ボトムシート） ===== */
+.sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:200;transition:background .25s;pointer-events:none}
+.sheet-backdrop.open{background:rgba(0,0,0,.6);pointer-events:auto}
+.sheet{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:480px;max-height:92%;display:flex;flex-direction:column;background:#1a1a1a;border-radius:20px 20px 0 0;z-index:201;transition:transform .3s cubic-bezier(.32,.72,0,1)}
+.sheet.open{transform:translateX(-50%) translateY(0)}
+.sheet-handle{width:36px;height:4px;background:#333;border-radius:2px;margin:12px auto 0;flex-shrink:0}
+.sheet-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px;flex-shrink:0}
+.sheet-header h3{font-size:17px;font-weight:500}
+.sheet-close{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px;line-height:1}
+.sheet-body{padding:0 20px calc(20px + var(--safe-bottom));overflow-y:auto}
+.sheet-label{font-size:12px;color:var(--text3);margin-bottom:7px;display:block}
+.sheet-inp{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:16px;font-family:inherit;outline:none;margin-bottom:14px;transition:border-color .15s}
+.sheet-inp:focus{border-color:var(--text4)}
+.sheet-inp::placeholder{color:var(--text4)}
+.sheet-inp[type=date]{-webkit-appearance:none;min-height:46px}
+.seg{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.seg button{flex:1;min-width:74px;padding:9px 10px;border-radius:12px;font-size:13px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;transition:all .15s}
+.seg button.sel{background:var(--surface2);border-color:var(--accent);color:var(--text)}
+.row2{display:flex;gap:12px}
+.row2>div{flex:1;min-width:0}
+.sheet-save{width:100%;padding:14px;border-radius:12px;background:var(--accent);border:none;color:#fff;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:4px;transition:background .15s}
+.sheet-save:active{background:var(--accent2)}
+.sheet-err{font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div id="mainScreen">
+    <div class="header">
+      <h1>食品管理</h1>
+      <div class="hicons">
+        <i class="ti ti-refresh" onclick="syncFromSheet()" title="再読み込み" aria-hidden="true"></i>
+        <i class="ti ti-settings" onclick="showSettings()" title="設定" aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div class="scroll-area" id="scrollArea">
+      <div class="food-list" id="foodList"></div>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="add-btn" onclick="openSheet()">
+        <i class="ti ti-plus" aria-hidden="true"></i> 食品を追加
+      </button>
+      <div class="sync-row">
+        <span class="sdot" id="syncDot"></span>
+        <span class="smsg" id="syncMsg">未接続 — 設定からGAS URLを入力してください</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-screen" id="settingsScreen">
+    <div class="s-header">
+      <button class="s-back" onclick="showMain()" aria-label="戻る"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
+      <h2>設定</h2>
+    </div>
+    <div class="s-body">
+      <p>GASをデプロイしたウェブアプリのURLを入力してください。スプレッドシートへのアクセス権はGAS側が持つため、ここで認証情報を入力する必要はありません。</p>
+
+      <label class="flabel" for="gasUrlInput">GAS ウェブアプリURL</label>
+      <input class="s-input" id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/...">
+
+      <label class="flabel" for="warnDaysInput">期限間近とみなす日数（しきい値）</label>
+      <input class="s-input" id="warnDaysInput" type="number" min="0" max="60" step="1" placeholder="3">
+
+      <button class="s-btn" onclick="saveSettings()">
+        <i class="ti ti-plug" style="font-size:16px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>
+        保存して同期
+      </button>
+      <button class="s-btn sec" onclick="showMain()">キャンセル</button>
+      <div class="s-err" id="settingsErr"></div>
+
+      <div class="s-note">
+        URLとしきい値はこのデバイスのlocalStorageにのみ保存されます。<br>
+        スプレッドシートの中身はGAS経由でのみ読み書きします。
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="sheet-backdrop" id="sheetBackdrop" onclick="closeSheet()"></div>
+<div class="sheet" id="editSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <h3 id="sheetTitle">食品を追加</h3>
+    <button class="sheet-close" onclick="closeSheet()" aria-label="閉じる"><i class="ti ti-x" aria-hidden="true"></i></button>
+  </div>
+  <div class="sheet-body">
+    <label class="sheet-label" for="inpName">商品名</label>
+    <input class="sheet-inp" id="inpName" placeholder="例：牛乳" maxlength="60">
+
+    <span class="sheet-label">保管場所</span>
+    <div class="seg" id="segPlace"></div>
+
+    <span class="sheet-label">期限種別</span>
+    <div class="seg" id="segKind"></div>
+
+    <div class="row2">
+      <div>
+        <label class="sheet-label" for="inpExpiry">期限日</label>
+        <input class="sheet-inp" id="inpExpiry" type="date">
+      </div>
+      <div>
+        <label class="sheet-label" for="inpBought">購入日</label>
+        <input class="sheet-inp" id="inpBought" type="date">
+      </div>
+    </div>
+
+    <label class="sheet-label" for="inpQty">数量</label>
+    <input class="sheet-inp" id="inpQty" type="number" min="0" step="1" value="1">
+
+    <button class="sheet-save" onclick="saveSheet()">保存</button>
+    <div class="sheet-err" id="sheetErr"></div>
+  </div>
+</div>
+
+<script>
+// ========== 定数 ==========
+const PLACES = ['冷蔵', '冷凍', '常温'];
+const KINDS  = ['賞味期限', '消費期限'];
+const LS_URL = 'fm_gas_url';
+const LS_WARN = 'fm_warn_days';
+const DEFAULT_WARN_DAYS = 3;
+
+// ========== 状態 ==========
+let foods = [];            // サーバから取得した食品の配列
+let gasUrl = '';
+let warnDays = DEFAULT_WARN_DAYS;
+let currentPlace = PLACES[0];
+let sheetPlace = PLACES[0];
+let sheetKind = KINDS[0];
+
+// ========== 設定の永続化 ==========
+function loadSettings() {
+  gasUrl = localStorage.getItem(LS_URL) || '';
+  const w = parseInt(localStorage.getItem(LS_WARN), 10);
+  warnDays = isFinite(w) && w >= 0 ? w : DEFAULT_WARN_DAYS;
+}
+
+function saveSettingsToStorage() {
+  localStorage.setItem(LS_URL, gasUrl);
+  localStorage.setItem(LS_WARN, String(warnDays));
+}
+
+function showSettings() {
+  document.getElementById('gasUrlInput').value = gasUrl;
+  document.getElementById('warnDaysInput').value = warnDays;
+  document.getElementById('settingsErr').textContent = '';
+  document.getElementById('settingsScreen').classList.add('active');
+  document.getElementById('mainScreen').style.display = 'none';
+}
+
+function showMain() {
+  document.getElementById('settingsScreen').classList.remove('active');
+  document.getElementById('mainScreen').style.display = 'flex';
+}
+
+async function saveSettings() {
+  const url = document.getElementById('gasUrlInput').value.trim();
+  const err = document.getElementById('settingsErr');
+  err.textContent = '';
+
+  if (!url || !url.startsWith('https://script.google.com')) {
+    err.textContent = 'GASのウェブアプリURLを正しく入力してください';
+    return;
+  }
+  const w = parseInt(document.getElementById('warnDaysInput').value, 10);
+
+  gasUrl = url;
+  warnDays = isFinite(w) && w >= 0 ? w : DEFAULT_WARN_DAYS;
+  saveSettingsToStorage();
+  showMain();
+  await syncFromSheet();
+}
+
+// ========== GAS 通信 ==========
+function setSyncState(state, msg) {
+  document.getElementById('syncDot').className = 'sdot ' + state;
+  document.getElementById('syncMsg').textContent = msg;
+}
+
+/**
+ * GAS ウェブアプリへ JSON を POST する。
+ * Content-Type を付けないのは、CORS のプリフライトを避けるため（NeoNoting と同じ流儀）。
+ */
+async function gasCall(body) {
+  if (!gasUrl) throw new Error('GAS URLが未設定です');
+  const res = await fetch(gasUrl, { method: 'POST', body: JSON.stringify(body) });
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || '不明なエラー');
+  return json.data;
+}
+
+async function syncFromSheet() {
+  if (!gasUrl) {
+    setSyncState('', '未接続 — 設定からGAS URLを入力してください');
+    renderAll();
+    return;
+  }
+  setSyncState('busy', '同期中...');
+  try {
+    foods = await gasCall({ action: 'list', includeConsumed: false });
+    setSyncState('ok', '同期済み ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
+    renderAll();
+  } catch (e) {
+    setSyncState('err', 'エラー: ' + e.message);
+    showToast('同期失敗: ' + e.message);
+    renderAll();
+  }
+}
+
+// ========== 期限の判定 ==========
+/** 期限日（yyyy-MM-dd）までの残日数。今日なら 0、過ぎていればマイナス。未設定なら null */
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const a = Date.parse(dateStr + 'T00:00:00Z');
+  const b = Date.parse(todayStr() + 'T00:00:00Z');
+  if (isNaN(a) || isNaN(b)) return null;
+  return Math.round((a - b) / 86400000);
+}
+
+/** 'expired' | 'soon' | 'ok' | 'unknown' — しきい値はフロント側の設定を使う */
+function statusOf(food) {
+  const d = daysUntil(food.expiryDate);
+  if (d === null) return 'unknown';
+  if (d < 0) return 'expired';
+  if (d <= warnDays) return 'soon';
+  return 'ok';
+}
+
+function expiryLabel(d) {
+  if (d === null) return '期限未設定';
+  if (d < 0) return (-d) + '日超過';
+  if (d === 0) return '今日まで';
+  return 'あと' + d + '日';
+}
+
+function todayStr() {
+  const t = new Date();
+  return t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate());
+}
+
+function pad2(n) { return ('0' + n).slice(-2); }
+
+/** 'yyyy-MM-dd' → 'M/D' */
+function shortDate(s) {
+  const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? (Number(m[2]) + '/' + Number(m[3])) : '';
+}
+
+// ========== 描画 ==========
+function renderAll() {
+  renderTabs();
+  renderList();
+}
+
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = PLACES.map(p => {
+    const items = foodsIn(p);
+    const alerts = items.filter(f => { const s = statusOf(f); return s === 'expired' || s === 'soon'; }).length;
+    const badge = alerts ? `<span class="tbadge">${alerts}</span>` : '';
+    return `<button class="tab${p === currentPlace ? ' active' : ''}" onclick="switchPlace('${p}')">${escHtml(p)}${badge}</button>`;
+  }).join('');
+}
+
+function switchPlace(place) {
+  currentPlace = place;
+  renderAll();
+  document.getElementById('scrollArea').scrollTop = 0;
+}
+
+/** 指定の保管場所の食品を、期限が近い順（期限未設定は末尾）に返す */
+function foodsIn(place) {
+  return foods
+    .filter(f => !f.consumed && f.place === place)
+    .sort((a, b) => {
+      if (!a.expiryDate) return 1;
+      if (!b.expiryDate) return -1;
+      return a.expiryDate < b.expiryDate ? -1 : (a.expiryDate > b.expiryDate ? 1 : 0);
+    });
+}
+
+function renderList() {
+  const list = foodsIn(currentPlace);
+  const el = document.getElementById('foodList');
+
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state">${gasUrl
+      ? escHtml(currentPlace) + 'に登録された食品はありません。<br>下のボタンから追加できます。'
+      : 'まず設定からGASのウェブアプリURLを<br>登録してください。'}</div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(f => {
+    const d = daysUntil(f.expiryDate);
+    const st = statusOf(f);
+    const cls = (st === 'expired' || st === 'soon') ? ' ' + st : '';
+    const badgeCls = (st === 'expired' || st === 'soon') ? ' ' + st : '';
+    const qty = Number(f.quantity) > 1 ? `<span class="fqty">×${escHtml(f.quantity)}</span>` : '';
+    const bought = f.boughtDate ? `<span>購入 ${escHtml(shortDate(f.boughtDate))}</span>` : '';
+    return `
+      <div class="food-card${cls}${f.pending ? ' pending' : ''}">
+        <div class="fbody">
+          <div class="fname">${escHtml(f.name)}${qty}</div>
+          <div class="fmeta">
+            <span class="fkind">${escHtml(f.kind)} ${escHtml(f.expiryDate || '—')}</span>
+            ${bought}
+          </div>
+        </div>
+        <span class="badge${badgeCls}">${escHtml(expiryLabel(d))}</span>
+      </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ========== モーダル（追加フォーム） ==========
+function openSheet() {
+  sheetPlace = currentPlace;
+  sheetKind = KINDS[0];
+
+  document.getElementById('sheetTitle').textContent = '食品を追加';
+  document.getElementById('inpName').value = '';
+  document.getElementById('inpExpiry').value = '';
+  document.getElementById('inpBought').value = todayStr();
+  document.getElementById('inpQty').value = '1';
+  document.getElementById('sheetErr').textContent = '';
+  renderSegs();
+
+  document.getElementById('sheetBackdrop').classList.add('open');
+  document.getElementById('editSheet').classList.add('open');
+  setTimeout(() => document.getElementById('inpName').focus(), 300);
+}
+
+function closeSheet() {
+  document.getElementById('sheetBackdrop').classList.remove('open');
+  document.getElementById('editSheet').classList.remove('open');
+}
+
+function renderSegs() {
+  document.getElementById('segPlace').innerHTML = PLACES.map(p =>
+    `<button class="${p === sheetPlace ? 'sel' : ''}" onclick="pickPlace('${p}')">${escHtml(p)}</button>`).join('');
+  document.getElementById('segKind').innerHTML = KINDS.map(k =>
+    `<button class="${k === sheetKind ? 'sel' : ''}" onclick="pickKind('${k}')">${escHtml(k)}</button>`).join('');
+}
+
+function pickPlace(p) { sheetPlace = p; renderSegs(); }
+function pickKind(k) { sheetKind = k; renderSegs(); }
+
+async function saveSheet() {
+  const err = document.getElementById('sheetErr');
+  err.textContent = '';
+
+  const food = {
+    name: document.getElementById('inpName').value.trim(),
+    place: sheetPlace,
+    kind: sheetKind,
+    expiryDate: document.getElementById('inpExpiry').value,
+    boughtDate: document.getElementById('inpBought').value,
+    quantity: Number(document.getElementById('inpQty').value) || 1
+  };
+
+  if (!food.name) { err.textContent = '商品名を入力してください'; return; }
+  if (!food.expiryDate) { err.textContent = '期限日を入力してください'; return; }
+  if (!gasUrl) { err.textContent = '先に設定からGAS URLを登録してください'; return; }
+
+  // 楽観的更新：先に一覧へ出しておき、GAS の応答で確定させる
+  const tmp = Object.assign({ id: 'tmp_' + Date.now(), consumed: false, pending: true }, food);
+  foods.push(tmp);
+  currentPlace = food.place;
+  closeSheet();
+  renderAll();
+  setSyncState('busy', '保存中...');
+
+  try {
+    const created = await gasCall({ action: 'create', food: food });
+    const i = foods.findIndex(f => f.id === tmp.id);
+    if (i >= 0) foods[i] = created;
+    setSyncState('ok', '保存しました ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
+    showToast('追加しました');
+  } catch (e) {
+    foods = foods.filter(f => f.id !== tmp.id);
+    setSyncState('err', '保存失敗: ' + e.message);
+    showToast('保存失敗: ' + e.message);
+  }
+  renderAll();
+}
+
+// ========== 初期化 ==========
+loadSettings();
+renderAll();
+if (gasUrl) {
+  syncFromSheet();
+} else {
+  setSyncState('', '未接続 — 設定からGAS URLを入力してください');
+}
+</script>
+</body>
+</html>
