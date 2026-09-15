@@ -21,6 +21,7 @@ GitHub Pages で配信し、Google Apps Script (GAS) 経由で Google スプレ�
 | `manifest.json` | PWA マニフェスト（standalone / portrait、SVG data-URI アイコン） |
 | `gas/Code.gs` | GAS バックエンド。スプレッドシートの CRUD と期限判定 |
 | `gas/appsscript.json` | GAS のプロジェクト設定（タイムゾーン Asia/Tokyo、ウェブアプリ公開設定） |
+| `.github/workflows/pages.yml` | GitHub Pages へのデプロイ（Source が「GitHub Actions」のとき使われる） |
 
 ---
 
@@ -57,9 +58,32 @@ GitHub Pages で配信し、Google Apps Script (GAS) 経由で Google スプレ�
 
 ### 3. GitHub Pages で公開する
 
+公開方法は 2 通りある。**この repo には `.github/workflows/pages.yml` を用意してあるので、
+Source が「GitHub Actions」のままで動く**（GitHub の新しい repo は既定でこちらになっている）。
+
+#### A. GitHub Actions で公開する（この repo の既定）
+
 1. GitHub の repo → **Settings → Pages**
-2. Source を **Deploy from a branch**、ブランチを `main` / フォルダを `/ (root)` にして保存
-3. 数十秒後に `https://<ユーザー名>.github.io/Food_Manager/` で開けるようになる
+2. **Source** が `GitHub Actions` になっていることを確認する（既定でそうなっているはず）
+3. `main` ブランチに push すると `Deploy to GitHub Pages` ワークフローが走る
+   - 進捗は repo の **Actions** タブで見られる
+   - 初回は「Pages の環境を作る」ぶん少し時間がかかる
+4. 緑のチェックが付いたら `https://<ユーザー名>.github.io/Food_Manager/` で開ける
+
+ワークフローは静的ファイルをそのまま上げるだけで、ビルド工程はない。
+
+#### B. ブランチから直接公開する（`.github/workflows/pages.yml` は不要）
+
+1. **Settings → Pages** の **Source** を `Deploy from a branch` に変える
+2. ブランチを `main` / フォルダを `/ (root)` にして **Save**
+3. 数十秒後に同じ URL で開ける
+
+B を選ぶ場合は `.github/workflows/pages.yml` を削除しておくとよい
+（残っていると push のたびにワークフローが走って失敗し、通知がうるさい）。
+
+> **`main` ブランチが無いと、どちらの方法も動かない。**
+> Pages の画面にブランチが出てこない・ワークフローが走らないときは、
+> repo のブランチ一覧に `main` があるかをまず確認すること。
 
 ### 4. アプリ側の設定
 

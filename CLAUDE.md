@@ -20,6 +20,7 @@ Google スプレッドシートに読み書きする。
 | `manifest.json` | PWA マニフェスト（standalone / portrait、SVG data-URI アイコン、theme #111） |
 | `gas/Code.gs` | GAS バックエンド。**編集したら GAS エディタに貼り直し、再デプロイが必要**（repo に置いてあるのは正本のコピー管理のため） |
 | `gas/appsscript.json` | GAS のプロジェクト設定（Asia/Tokyo、ウェブアプリ公開設定） |
+| `.github/workflows/pages.yml` | GitHub Pages へのデプロイ用ワークフロー（ビルドはせず静的ファイルをそのまま配信） |
 | `README.md` | セットアップ手順（スプレッドシート・GAS デプロイ・GitHub Pages）と API 仕様 |
 
 NeoNoting のような `index2.html`, `index7.html` といった世代スナップショットは作らない。
@@ -85,6 +86,9 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 
 ## デプロイ
 
-- **フロント**: `main` ブランチへの push で GitHub Pages が更新される（配信されるのは `index.html`）
+- **フロント**: `main` ブランチへの push で `.github/workflows/pages.yml` が走り、GitHub Pages が更新される。
+  Settings → Pages の Source は **GitHub Actions**（新しい repo の既定）。
+  `Deploy from a branch` に切り替える場合はワークフローを削除すること（残ると毎 push 失敗する）。
+  配信されるのはリポジトリ全体で、入口は `index.html`
 - **GAS**: `gas/Code.gs` の変更は自動では反映されない。GAS エディタに貼り直したうえで
   「デプロイ → デプロイを管理 → 編集 → バージョン: 新バージョン → デプロイ」まで行うこと
