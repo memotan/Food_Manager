@@ -77,10 +77,16 @@ Source が「GitHub Actions」のままで動く**（GitHub の新しい repo �
 #### A. GitHub Actions で公開する（この repo の既定）
 
 1. GitHub の repo → **Settings → Pages**
-2. **Source** が `GitHub Actions` になっていることを確認する（既定でそうなっているはず）
+2. **Source** を `GitHub Actions` にして確定する
+   - **この操作が Pages サイトの作成そのものを兼ねている。一度もやっていないと、
+     ワークフローは `Get Pages site failed` で必ず失敗する**
+   - ワークフロー側から自動で有効化することはできない。`configure-pages` の
+     `enablement: true` はサイト作成に `administration:write` を要求するが、
+     既定の `GITHUB_TOKEN` にはその権限を付与できないため必ず失敗する
+     （[actions/configure-pages#40](https://github.com/actions/configure-pages/issues/40)）
 3. `main` ブランチに push すると `Deploy to GitHub Pages` ワークフローが走る
    - 進捗は repo の **Actions** タブで見られる
-   - 初回は「Pages の環境を作る」ぶん少し時間がかかる
+   - 過去に失敗した実行は **Re-run jobs** で再実行できる
 4. 緑のチェックが付いたら `https://<ユーザー名>.github.io/Food_Manager/` で開ける
 
 ワークフローは静的ファイルをそのまま上げるだけで、ビルド工程はない。

@@ -29,12 +29,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      # enablement: true は使わない。Pages サイトの作成には administration:write が
+      # 必要で、既定の GITHUB_TOKEN には付与できないため必ず失敗する
+      # （actions/configure-pages#40）。Pages は Settings → Pages で一度だけ
+      # 手動で有効にすること。
       - name: Setup Pages
         uses: actions/configure-pages@v5
-        with:
-          # Pages が未設定なら、このワークフローが有効化まで行う
-          # （リポジトリが公開であることが前提。非公開かつ無料プランだと失敗する）
-          enablement: true
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
