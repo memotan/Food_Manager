@@ -196,14 +196,36 @@ B を選ぶ場合は `.github/workflows/pages.yml` を削除しておくとよ�
 
 生成される Android プロジェクトは `minSdkVersion 24` / `targetSdkVersion 36`。
 
+### 置き場所に注意
+
+**リポジトリは、パスに日本語が入らない場所に置くこと。** Android のビルド（Gradle）は
+パスに日本語が含まれていると失敗する。
+
+特に OneDrive を使っていると、エクスプローラ上は「ドキュメント」と見えていても、
+実際のパスが `C:\Users\<ユーザー名>\OneDrive\ドキュメント\...` と日本語になっていることがある。
+Windows のユーザー名自体が日本語の場合も同様。
+
+`C:\dev\Food_Manager` のような場所が無難:
+
+```powershell
+cd C:\
+mkdir dev
+cd dev
+git clone https://github.com/memotan/Food_Manager.git
+```
+
+現在地のパスは PowerShell で `pwd` を打てば確認できる。
+`setup.bat` は最初にこれを検査し、日本語が含まれていればその場で止まる
+（`npm run check` でも単独で確認できる）。
+
 ### 手順（Windows 11）
 
 ```powershell
-cd C:\path\to\Food_Manager\capacitor-app
-setup.bat
+cd C:\dev\Food_Manager\capacitor-app
+.\setup.bat
 ```
 
-`setup.bat` が npm install → web アセットのコピー → `cap add android` → `cap sync` まで行う。
+`setup.bat` がパスの検査 → npm install → web アセットのコピー → `cap add android` → `cap sync` まで行う。
 終わったら Android Studio で開く:
 
 ```powershell

@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check": "node scripts/check-path.mjs",
     "copy": "node scripts/copy-www.mjs",
     "sync": "npm run copy && cap sync",
     "open": "cap open android",
