@@ -1,0 +1,6 @@
+node_modules/
+android/
+.gradle/
+
+# www/ は scripts/copy-www.mjs が生成するのでコミットしない
+www/

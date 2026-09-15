@@ -21,10 +21,12 @@ Google スプレッドシートに読み書きする。
 | `gas/Code.gs` | GAS バックエンド。**編集したら GAS エディタに貼り直し、再デプロイが必要**（repo に置いてあるのは正本のコピー管理のため） |
 | `gas/appsscript.json` | GAS のプロジェクト設定（Asia/Tokyo、ウェブアプリ公開設定） |
 | `.github/workflows/pages.yml` | GitHub Pages へのデプロイ用ワークフロー（ビルドはせず静的ファイルをそのまま配信） |
+| `capacitor-app/` | Android アプリ化（Capacitor 8）。`www/` は `npm run sync` が生成するので **git 管理しない**。アプリ本体の複製は持たない |
 | `README.md` | セットアップ手順（スプレッドシート・GAS デプロイ・GitHub Pages）と API 仕様 |
 
 NeoNoting のような `index2.html`, `index7.html` といった世代スナップショットは作らない。
-履歴は git で追う。
+履歴は git で追う。同じ理由で、NeoNoting が持っている `capacitor-app/www/index.html` の
+**複製も置かない**（`capacitor-app/scripts/copy-www.mjs` がルートからコピーして生成する）。
 
 ## アーキテクチャ
 
@@ -63,6 +65,21 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
   表示に使う判定は必ずフロントの `statusOf()` / `daysUntil()` で計算し直す（GAS 側の `DEFAULT_WARN_DAYS`
   はサーバ単独で動く `expiring` や通知用の既定値）
 
+## Capacitor（Android アプリ）
+
+`capacitor-app/` がルートの `index.html` を包む。Capacitor 8（NeoNoting は 6）。
+既定では web アセットを同梱する構成で、`server.url` は書いていない
+（GitHub Pages が未公開でも動くようにするため）。切り替え方は README を参照。
+
+- **アプリ本体は必ずルートの `index.html` を直す。** `capacitor-app/www/` は生成物で、
+  次の `npm run sync` に上書きされる
+- **ビルド工程がないので `import` は使えない。** プラグインは `Capacitor.Plugins.App` のように
+  グローバル経由で参照する
+- 連携部分は `setupCapacitor()` に閉じ込める。`window.Capacitor` が無ければ即 return するので、
+  同じファイルがブラウザでもそのまま動く。この前提を壊さないこと
+- 現状の連携: Android の戻るボタン（モーダル → 設定画面 → 終了）と、
+  アプリ復帰時の再描画・再同期（`handleResume()`）
+
 ## 実装状況
 
 段階的に進めている。
@@ -70,6 +87,7 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 - **完了（第 1 段階）**: 一覧表示 / 追加（モーダル）/ 保管場所タブ / 期限順ソート / 色分け・バッジ / しきい値設定
 - **未着手（第 2 段階）**: 編集・削除の UI。GAS 側の `update` / `consume` / `delete` は実装済みなので、
   カードのタップで既存のモーダルを編集モードで開く形が素直
+- **完了**: Capacitor による Android アプリ化（`capacitor-app/`）
 - **スコープ外**: ntfy によるプッシュ通知。`gas/Code.gs` の `notifyExpiringItems()` を差し込み口として用意済み
 
 ## 開発上の注意

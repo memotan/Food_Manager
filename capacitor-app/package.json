@@ -1,0 +1,23 @@
+{
+  "name": "food-manager-app",
+  "version": "1.0.0",
+  "description": "食品管理 — 食品の期限・在庫管理アプリ（Capacitor ラッパー）",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "copy": "node scripts/copy-www.mjs",
+    "sync": "npm run copy && cap sync",
+    "open": "cap open android",
+    "build": "npm run sync && cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

@@ -235,6 +235,7 @@ let warnDays = DEFAULT_WARN_DAYS;
 let currentPlace = PLACES[0];
 let sheetPlace = PLACES[0];
 let sheetKind = KINDS[0];
+let lastSyncAt = 0;         // 最後に同期できた時刻（復帰時の再同期の判定に使う）
 
 // ========== 設定の永続化 ==========
 function loadSettings() {
@@ -306,6 +307,7 @@ async function syncFromSheet() {
   setSyncState('busy', '同期中...');
   try {
     foods = await gasCall({ action: 'list', includeConsumed: false });
+    lastSyncAt = Date.now();
     setSyncState('ok', '同期済み ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
     renderAll();
   } catch (e) {
@@ -505,9 +507,54 @@ async function saveSheet() {
   renderAll();
 }
 
+// ========== 復帰時の処理 ==========
+/**
+ * 画面が再び見える状態になったときの処理。
+ * 残日数は描画のたびに計算しているので、日付をまたいだ場合に備えて必ず描き直す。
+ * 最後の同期から 60 秒以上経っていれば、シートからも取り直す。
+ */
+function handleResume() {
+  renderAll();
+  if (gasUrl && Date.now() - lastSyncAt > 60000) syncFromSheet();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') handleResume();
+});
+
+// ========== Capacitor（Android アプリとして動かすときだけ有効） ==========
+/**
+ * ブラウザには window.Capacitor が無いので、この関数はまるごと何もしない。
+ * ビルド工程がないため、プラグインは Capacitor.Plugins 経由で参照する
+ * （import 文は使えない）。
+ */
+function setupCapacitor() {
+  const cap = window.Capacitor;
+  if (!cap || !cap.Plugins || !cap.Plugins.App) return;
+
+  const App = cap.Plugins.App;
+
+  // Android の戻るボタン: モーダル → 設定画面 → アプリ終了 の順に閉じていく
+  App.addListener('backButton', () => {
+    if (document.getElementById('editSheet').classList.contains('open')) {
+      closeSheet();
+    } else if (document.getElementById('settingsScreen').classList.contains('active')) {
+      showMain();
+    } else {
+      App.exitApp();
+    }
+  });
+
+  // アプリが前面に戻ったとき
+  App.addListener('appStateChange', state => {
+    if (state && state.isActive) handleResume();
+  });
+}
+
 // ========== 初期化 ==========
 loadSettings();
 renderAll();
+setupCapacitor();
 if (gasUrl) {
   syncFromSheet();
 } else {

@@ -22,6 +22,7 @@ GitHub Pages で配信し、Google Apps Script (GAS) 経由で Google スプレ�
 | `gas/Code.gs` | GAS バックエンド。スプレッドシートの CRUD と期限判定 |
 | `gas/appsscript.json` | GAS のプロジェクト設定（タイムゾーン Asia/Tokyo、ウェブアプリ公開設定） |
 | `.github/workflows/pages.yml` | GitHub Pages へのデプロイ（Source が「GitHub Actions」のとき使われる） |
+| `capacitor-app/` | Capacitor による Android アプリ化。ルートの `index.html` を包むだけで、アプリ本体の複製は持たない |
 
 ---
 
@@ -177,6 +178,89 @@ B を選ぶ場合は `.github/workflows/pages.yml` を削除しておくとよ�
 
 `daysLeft` は期限日までの残日数（今日なら 0、過ぎていればマイナス）。
 `status` は `expired` / `soon` / `ok` / `unknown`。
+
+---
+
+## Android アプリにする（Capacitor）
+
+`capacitor-app/` で、同じ `index.html` を Android アプリとして包める。
+ブラウザで使う場合はこのディレクトリを無視してよい。
+
+### 必要なもの（Capacitor 8）
+
+| | バージョン |
+|---|---|
+| Node.js | 22 以上 |
+| JDK | 17 以上 |
+| Android Studio | Otter (2025.2.1) 以上 |
+
+生成される Android プロジェクトは `minSdkVersion 24` / `targetSdkVersion 36`。
+
+### 手順（Windows 11）
+
+```powershell
+cd C:\path\to\Food_Manager\capacitor-app
+setup.bat
+```
+
+`setup.bat` が npm install → web アセットのコピー → `cap add android` → `cap sync` まで行う。
+終わったら Android Studio で開く:
+
+```powershell
+npm run open
+```
+
+Android Studio 上で実機・エミュレータへ実行する。APK が欲しい場合は
+**Build → Build Bundle(s) / APK(s) → Build APK(s)**。
+
+### `index.html` を直したあと
+
+```powershell
+cd capacitor-app
+npm run sync
+```
+
+`npm run sync` は「ルートの `index.html` / `manifest.json` を `www/` にコピー」→「`cap sync`」を続けて行う。
+
+> **`capacitor-app/www/` は生成物なので git で管理していない。** 手で編集しても
+> 次の `npm run sync` で上書きされる。直すのは必ずルートの `index.html`。
+> （NeoNoting は `capacitor-app/www/index.html` にアプリ本体の複製を持っているが、
+> 二重管理で片方だけ直す事故が起きるため、この repo では複製しない方針にした）
+
+### 構成
+
+既定では **web アセットをアプリに同梱する**（`capacitor.config.json` に `server.url` を書かない）。
+GitHub Pages が未公開でも動き、起動も速い。
+
+GitHub Pages 側を読みに行く方式（NeoNoting と同じ）にしたい場合は、
+`capacitor.config.json` に次を足して `npm run sync` する。
+
+```json
+  "server": {
+    "url": "https://memotan.github.io/Food_Manager/",
+    "androidScheme": "https"
+  }
+```
+
+- 利点: `index.html` を直して push するだけでアプリ側にも反映される（APK の作り直しが不要）
+- 欠点: 起動のたびに通信が必要。Pages が落ちているとアプリも開けない
+
+### 実装されている連携
+
+`index.html` の `setupCapacitor()` が担当する。`window.Capacitor` が無いブラウザでは
+まるごと何もしないので、同じファイルが両方で動く。
+
+- **戻るボタン**: モーダル → 設定画面 → アプリ終了 の順に閉じる
+- **アプリ復帰時**: 残日数を計算し直す。最後の同期から 60 秒以上空いていればシートも取り直す
+
+ビルド工程がないため、プラグインは `import` ではなく `Capacitor.Plugins.App` のように参照している。
+
+### うまくいかないとき
+
+GAS への通信が CORS で弾かれる場合は、`capacitor.config.json` に
+`"plugins": { "CapacitorHttp": { "enabled": true } }` を足すと、`fetch` がネイティブ側の
+HTTP 実装に差し替わり CORS の制約を受けなくなる。
+（既定では WebView の `fetch` をそのまま使うので、ブラウザと同じ挙動になる）
 
 ---
 
