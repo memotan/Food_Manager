@@ -58,6 +58,19 @@ GitHub Pages で配信し、Google Apps Script (GAS) 経由で Google スプレ�
 
 ### 3. GitHub Pages で公開する
 
+> **前提: リポジトリが「公開（public）」であること。**
+> 無料プランの GitHub Pages は公開リポジトリでしか使えない。非公開のままだと
+> Settings → Pages に通常の設定項目が出ず、アップグレードを促す表示になる。
+> 非公開のまま使いたい場合は GitHub Pro 以上が必要（ただし Pro でも
+> *公開されたサイト自体*は誰でも見られる。サイトにアクセス制限をかける機能は
+> GitHub Enterprise Cloud 限定）。
+>
+> このリポジトリにトークン等の秘密情報は含まれていない。GAS のウェブアプリ URL は
+> アプリの設定画面で入力し、その端末の localStorage にだけ保存されるので、
+> 公開リポジトリにしても URL が漏れることはない。
+>
+> 出典: [GitHub's plans — GitHub Docs](https://docs.github.com/get-started/learning-about-github/githubs-products)
+
 公開方法は 2 通りある。**この repo には `.github/workflows/pages.yml` を用意してあるので、
 Source が「GitHub Actions」のままで動く**（GitHub の新しい repo は既定でこちらになっている）。
 
