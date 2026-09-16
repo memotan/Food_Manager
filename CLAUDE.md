@@ -149,11 +149,22 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
   （NeoNoting にはタスク名が未エスケープの箇所があるが、こちらでは全てエスケープしている）
 - `index.html` を GAS の `doGet` から配信する構成ではない。フロントは GitHub Pages、GAS は API のみ
 
+## バージョン
+
+`index.html` の `APP_VERSION` と `gas/Code.gs` の `GAS_VERSION` に同じ番号を書く。
+設定画面が `ping` で GAS 側の番号を取り、食い違っていれば再デプロイを促す警告を出す
+（フロントは push で自動更新されるのに GAS は手作業なので、古いまま気づかない事故が起きやすい）。
+
+- **どちらかを直したら、両方の番号を上げること。** 片方だけ直すと警告が出たままになる
+- GAS 側は `ping` と `doGet` の両方で返す
+- 番号は手で管理する。ビルド工程がないので自動では埋め込めない
+
 ## デプロイ
 
 - **フロント**: `main` ブランチへの push で `.github/workflows/pages.yml` が走り、GitHub Pages が更新される。
   Settings → Pages の Source は **GitHub Actions**（新しい repo の既定）。
   `Deploy from a branch` に切り替える場合はワークフローを削除すること（残ると毎 push 失敗する）。
   配信されるのはリポジトリ全体で、入口は `index.html`
-- **GAS**: `gas/Code.gs` の変更は自動では反映されない。GAS エディタに貼り直したうえで
-  「デプロイ → デプロイを管理 → 編集 → バージョン: 新バージョン → デプロイ」まで行うこと
+- **GAS**: `gas/Code.gs` の変更は自動では反映されない。`GAS_VERSION` を上げ、GAS エディタに
+  貼り直したうえで「デプロイ → デプロイを管理 → 編集 → バージョン: 新バージョン → デプロイ」
+  まで行うこと。反映できたかは、アプリの設定画面の表示で確かめられる

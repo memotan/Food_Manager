@@ -10,6 +10,13 @@
 
 // ========== 定数 ==========
 
+/**
+ * このファイルのバージョン。index.html の APP_VERSION と揃えること。
+ * ping で返しており、揃っていないとアプリの設定画面が警告を出す。
+ * Code.gs を直したら、ここを上げたうえで GAS エディタに貼り直し、再デプロイすること。
+ */
+var GAS_VERSION = '1.0.0';
+
 var SHEET_NAME = '食品';
 
 /** 列の並び。変更したら COL も合わせること */
@@ -45,13 +52,18 @@ function doPost(e) {
 
 /** ブラウザで URL を直接開いたときの疎通確認用 */
 function doGet() {
-  return json_({ ok: true, data: { service: 'Food Manager GAS', sheet: SHEET_NAME, today: todayStr_() } });
+  return json_({ ok: true, data: {
+    service: 'Food Inv. Manager GAS',
+    version: GAS_VERSION,
+    sheet: SHEET_NAME,
+    today: todayStr_()
+  } });
 }
 
 function dispatch_(body) {
   var action = body.action;
   switch (action) {
-    case 'ping':    return { today: todayStr_(), tz: tz_() };
+    case 'ping':    return { version: GAS_VERSION, today: todayStr_(), tz: tz_() };
     case 'list':    return listFoods(body.includeConsumed === true);
     case 'create':  return addFood(body.food || {});
     case 'update':  return updateFood(body.food || {});
