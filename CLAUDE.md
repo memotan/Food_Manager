@@ -53,6 +53,10 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 ```
 
 - `place` は `冷蔵` / `冷凍` / `常温`（必須）。`kind` は `賞味期限` / `消費期限`（GAS 側の `normalize_` で検証）
+- **並べ替えの比較関数で、期限なしどうしには必ず `0` を返すこと。** `1` を返すと `a>b` と `b>a` が
+  同時に成立する不正な比較になり、期限なしが 2 件以上あると順序が安定しない
+  （フロントの `foodsIn()` と GAS の `sortByExpiry_()` の両方）。
+  `sort` は安定なので、`0` を返せば期限なしどうしは登録順が保たれる
 - **`expiryDate` は任意。** 在庫の数だけ管理したい食品があるため必須にしない。
   空のときは `kind` も空に揃え（`normalize_`）、`daysLeft` は `null`、`status` は `unknown` になる。
   一覧では末尾に並び、色分け・タブの警告件数・`expiring` の対象から外れる
@@ -97,6 +101,26 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 
 ## 操作
 
+### 一覧のタップ
+
+`setupListTaps()` が `#foodList` で**委譲**して受ける。カードごとに `onclick` を書かないこと
+（`id` を文字列に埋め込まずに済み、再描画のたびにリスナを張り直す必要もない）。
+`id` は `data-id` に持たせ、`escHtml()` を通す。
+
+- カード左の丸（`.chk`）… 消費済みにする（論理削除）。取り消せるようトーストに「元に戻す」を出す
+- それ以外の場所 … 編集モーダルを開く（`openSheet(id)`）
+- **スワイプ直後 400ms のクリックは無視する**（`lastSwipeAt`）。
+  横に払ったあとに click が続けて発火し、編集モーダルが開いてしまうのを防ぐ
+
+### 書き込み
+
+すべて楽観的更新。**失敗したら必ず元の値に戻すこと**（`applyUpdate` / `setConsumedFlag` は
+`before` を保持し、`applyCreate` は一時 ID の要素を取り除き、`removeFromSheet` は配列ごと戻す）。
+
+「削除」は行ごと消えて戻せないため `confirm()` で確認し、消費済みを使う道も文面で案内する。
+
+### スワイプ
+
 - タブのタップに加えて、一覧の**左右スワイプ**でも保管場所を移動できる（`setupSwipe()`）
 - スワイプ判定は `touchstart` と `touchend` だけを見る。**`touchmove` を握らず `preventDefault` も
   しないこと**（縦スクロールを壊すため）。リスナは `{ passive: true }` で登録する
@@ -109,8 +133,7 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 
 - **完了（第 1 段階）**: 一覧表示 / 追加（モーダル）/ 保管場所タブ / 期限順ソート / 色分け・バッジ / しきい値設定
 - **完了**: 期限日の任意化（在庫のみの管理）、スワイプでのタブ移動、Budget Manager に揃えたタイトル
-- **未着手（第 2 段階）**: 編集・削除の UI。GAS 側の `update` / `consume` / `delete` は実装済みなので、
-  カードのタップで既存のモーダルを編集モードで開く形が素直
+- **完了（第 2 段階）**: 編集・消費済み・削除の UI
 - **完了**: Capacitor による Android アプリ化（`capacitor-app/`）
 - **スコープ外**: ntfy によるプッシュ通知。`gas/Code.gs` の `notifyExpiringItems()` を差し込み口として用意済み
 

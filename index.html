@@ -55,11 +55,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
   background:var(--surface);border-radius:14px;padding:13px 14px;
   display:flex;align-items:center;gap:12px;
   border-left:3px solid var(--text4);
-  transition:opacity .15s,background .15s;user-select:none
+  transition:opacity .15s,background .15s;user-select:none;cursor:pointer
 }
+.food-card:active{background:var(--surface2)}
 .food-card.expired{border-left-color:var(--danger)}
 .food-card.soon{border-left-color:var(--warn)}
 .food-card.pending{opacity:.5}
+
+/* 一tap で消費済みにするボタン。カード本体のタップ（編集）とは別の当たり判定にする */
+.chk{width:26px;height:26px;border-radius:50%;border:2px solid var(--text4);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;transition:all .15s}
+.chk::after{content:'';width:6px;height:10px;border:2px solid var(--text4);border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px);transition:border-color .15s}
+.chk:active{background:var(--accent);border-color:var(--accent)}
+.chk:active::after{border-color:#fff}
 
 .fbody{flex:1;min-width:0}
 .fname{font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -107,6 +114,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 /* ===== トースト ===== */
 .toast{position:fixed;bottom:calc(88px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:var(--text2);font-size:13px;padding:8px 16px;border-radius:20px;opacity:0;transition:all .3s;pointer-events:none;max-width:90%;text-align:center;z-index:300}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.act{pointer-events:auto;display:flex;align-items:center;gap:14px;max-width:94%}
+/* 商品名が長くても折り返さず、末尾を省略して1行に収める */
+.toast.act>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.toast-act{background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;padding:2px 0;white-space:nowrap}
 
 /* ===== モーダル（ボトムシート） ===== */
 .sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:200;transition:background .25s;pointer-events:none}
@@ -131,6 +142,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .row2>div{flex:1;min-width:0}
 .sheet-save{width:100%;padding:14px;border-radius:12px;background:var(--accent);border:none;color:#fff;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:4px;transition:background .15s}
 .sheet-save:active{background:var(--accent2)}
+.sheet-actions{display:none;gap:10px;margin-top:10px}
+.sact{flex:1;padding:12px;border-radius:12px;background:transparent;border:1px solid var(--border);color:var(--text2);font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+.sact:active{background:var(--surface2)}
+.sact.danger{color:var(--danger-fg)}
+.sact.danger:active{background:var(--danger-bg)}
 .sheet-err{font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;text-align:center}
 </style>
 </head>
@@ -228,6 +244,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <input class="sheet-inp" id="inpQty" type="number" min="0" step="1" value="1">
 
     <button class="sheet-save" onclick="saveSheet()">保存</button>
+    <div class="sheet-actions" id="sheetActions">
+      <button class="sact" onclick="consumeFromSheet()">
+        <i class="ti ti-check" aria-hidden="true"></i> 消費済みにする
+      </button>
+      <button class="sact danger" onclick="removeFromSheet()">
+        <i class="ti ti-trash" aria-hidden="true"></i> 削除
+      </button>
+    </div>
     <div class="sheet-err" id="sheetErr"></div>
   </div>
 </div>
@@ -247,6 +271,8 @@ let warnDays = DEFAULT_WARN_DAYS;
 let currentPlace = PLACES[0];
 let sheetPlace = PLACES[0];
 let sheetKind = KINDS[0];
+let sheetFoodId = null;     // 編集中の食品のID。null なら新規追加
+let lastSwipeAt = 0;        // スワイプ直後のタップを編集と取り違えないため
 let lastSyncAt = 0;         // 最後に同期できた時刻（復帰時の再同期の判定に使う）
 
 // ========== 設定の永続化 ==========
@@ -320,7 +346,7 @@ async function syncFromSheet() {
   try {
     foods = await gasCall({ action: 'list', includeConsumed: false });
     lastSyncAt = Date.now();
-    setSyncState('ok', '同期済み ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
+    setSyncState('ok', '同期済み ' + nowHm());
     renderAll();
   } catch (e) {
     setSyncState('err', 'エラー: ' + e.message);
@@ -361,6 +387,10 @@ function todayStr() {
 }
 
 function pad2(n) { return ('0' + n).slice(-2); }
+
+function nowHm() {
+  return new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+}
 
 /** 'yyyy-MM-dd' → 'M/D' */
 function shortDate(s) {
@@ -427,18 +457,28 @@ function setupSwipe() {
 
     const i = PLACES.indexOf(currentPlace);
     const next = i + (dx < 0 ? 1 : -1);              // 左へ払う = 次のタブ
+    lastSwipeAt = Date.now();
     if (next >= 0 && next < PLACES.length) switchPlace(PLACES[next]);
   }, { passive: true });
 }
 
-/** 指定の保管場所の食品を、期限が近い順（期限未設定は末尾）に返す */
+/**
+ * 指定の保管場所の食品を、期限が近い順（期限なしは末尾）に返す。
+ *
+ * 期限なしどうしは 0 を返して並べ替えない。ここで 1 を返すと a>b と b>a が
+ * 同時に成立する不正な比較になり、期限なしが2件以上あると順序が安定しない。
+ * sort は安定なので、期限なしどうしは元の並び（登録順）が保たれる。
+ */
 function foodsIn(place) {
   return foods
     .filter(f => !f.consumed && f.place === place)
     .sort((a, b) => {
-      if (!a.expiryDate) return 1;
-      if (!b.expiryDate) return -1;
-      return a.expiryDate < b.expiryDate ? -1 : (a.expiryDate > b.expiryDate ? 1 : 0);
+      const ax = a.expiryDate || '';
+      const bx = b.expiryDate || '';
+      if (!ax && !bx) return 0;
+      if (!ax) return 1;
+      if (!bx) return -1;
+      return ax < bx ? -1 : (ax > bx ? 1 : 0);
     });
 }
 
@@ -469,8 +509,10 @@ function renderList() {
       meta.push(`<span>購入 <span class="fdate">${escHtml(shortDate(f.boughtDate))}</span></span>`);
     }
 
+    // id は属性に持たせ、クリックは委譲で受ける（onclick に値を埋め込まない）
     return `
-      <div class="food-card${cls}${f.pending ? ' pending' : ''}">
+      <div class="food-card${cls}${f.pending ? ' pending' : ''}" data-id="${escHtml(f.id)}">
+        <button class="chk" aria-label="消費済みにする"></button>
         <div class="fbody">
           <div class="fname">${escHtml(f.name)}${qty}</div>
           <div class="fmeta">${meta.join('')}</div>
@@ -480,6 +522,23 @@ function renderList() {
   }).join('');
 }
 
+/**
+ * 一覧のタップを一手に受ける。
+ * チェックボタンなら消費済みに、それ以外の場所なら編集モーダルを開く。
+ */
+function setupListTaps() {
+  document.getElementById('foodList').addEventListener('click', e => {
+    // スワイプの直後に発火したクリックは無視する
+    if (Date.now() - lastSwipeAt < 400) return;
+
+    const card = e.target.closest('.food-card');
+    if (!card || !card.dataset.id) return;
+
+    if (e.target.closest('.chk')) consumeFromCard(card.dataset.id);
+    else openSheet(card.dataset.id);
+  });
+}
+
 function escHtml(s) {
   return String(s === null || s === undefined ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -487,25 +546,54 @@ function escHtml(s) {
 }
 
 let toastTimer = null;
-function showToast(msg) {
+/**
+ * @param {string} msg 出す文言
+ * @param {string=} actionLabel 添えるボタンの文言（省略可）
+ * @param {Function=} onAction そのボタンを押したときの処理
+ */
+function showToast(msg, actionLabel, onAction) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
+  el.textContent = '';
+  el.classList.toggle('act', !!actionLabel);
+
+  const span = document.createElement('span');
+  span.textContent = msg;
+  el.appendChild(span);
+
+  if (actionLabel && onAction) {
+    const btn = document.createElement('button');
+    btn.className = 'toast-act';
+    btn.textContent = actionLabel;
+    btn.onclick = () => { el.classList.remove('show'); onAction(); };
+    el.appendChild(btn);
+  }
+
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  // 取り消せるものは、気づいて押せるだけの時間を置く
+  toastTimer = setTimeout(() => el.classList.remove('show'), actionLabel ? 6000 : 2600);
 }
 
 // ========== モーダル（追加フォーム） ==========
-function openSheet() {
-  sheetPlace = currentPlace;
-  sheetKind = KINDS[0];
+/**
+ * モーダルを開く。
+ * @param {string=} id 渡せば編集、渡さなければ新規追加
+ */
+function openSheet(id) {
+  const food = id ? foods.find(f => String(f.id) === String(id)) : null;
+  sheetFoodId = food ? food.id : null;
 
-  document.getElementById('sheetTitle').textContent = '食品を追加';
-  document.getElementById('inpName').value = '';
-  document.getElementById('inpExpiry').value = '';
-  document.getElementById('inpBought').value = todayStr();
-  document.getElementById('inpQty').value = '1';
+  sheetPlace = food ? food.place : currentPlace;
+  sheetKind = (food && food.kind) ? food.kind : KINDS[0];
+
+  document.getElementById('sheetTitle').textContent = food ? '食品を編集' : '食品を追加';
+  document.getElementById('inpName').value = food ? food.name : '';
+  document.getElementById('inpExpiry').value = food ? (food.expiryDate || '') : '';
+  document.getElementById('inpBought').value = food ? (food.boughtDate || '') : todayStr();
+  document.getElementById('inpQty').value = food ? String(food.quantity) : '1';
   document.getElementById('sheetErr').textContent = '';
+  // 消費済み・削除は、既にある食品にしか意味がない
+  document.getElementById('sheetActions').style.display = food ? 'flex' : 'none';
   renderSegs();
   updateKindState();
 
@@ -517,6 +605,7 @@ function openSheet() {
 function closeSheet() {
   document.getElementById('sheetBackdrop').classList.remove('open');
   document.getElementById('editSheet').classList.remove('open');
+  sheetFoodId = null;
 }
 
 function renderSegs() {
@@ -553,11 +642,17 @@ async function saveSheet() {
   if (!food.name) { err.textContent = '商品名を入力してください'; return; }
   if (!gasUrl) { err.textContent = '先に設定からGAS URLを登録してください'; return; }
 
-  // 楽観的更新：先に一覧へ出しておき、GAS の応答で確定させる
+  const id = sheetFoodId;
+  closeSheet();
+  if (id) await applyUpdate(id, food);
+  else await applyCreate(food);
+}
+
+/** 新規追加。楽観的更新で先に一覧へ出し、GAS の応答で確定させる */
+async function applyCreate(food) {
   const tmp = Object.assign({ id: 'tmp_' + Date.now(), consumed: false, pending: true }, food);
   foods.push(tmp);
   currentPlace = food.place;
-  closeSheet();
   renderAll();
   setSyncState('busy', '保存中...');
 
@@ -565,7 +660,7 @@ async function saveSheet() {
     const created = await gasCall({ action: 'create', food: food });
     const i = foods.findIndex(f => f.id === tmp.id);
     if (i >= 0) foods[i] = created;
-    setSyncState('ok', '保存しました ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }));
+    setSyncState('ok', '保存しました ' + nowHm());
     showToast('追加しました');
   } catch (e) {
     foods = foods.filter(f => f.id !== tmp.id);
@@ -573,6 +668,100 @@ async function saveSheet() {
     showToast('保存失敗: ' + e.message);
   }
   renderAll();
+}
+
+/** 既存の食品を更新する。失敗したら元の値に戻す */
+async function applyUpdate(id, patch) {
+  const i = foods.findIndex(f => String(f.id) === String(id));
+  if (i < 0) return;
+
+  const before = foods[i];
+  foods[i] = Object.assign({}, before, patch, { pending: true });
+  currentPlace = patch.place;   // 保管場所を変えたら、そのタブを見せる
+  renderAll();
+  setSyncState('busy', '保存中...');
+
+  try {
+    const updated = await gasCall({ action: 'update', food: Object.assign({ id: id }, patch) });
+    const j = foods.findIndex(f => String(f.id) === String(id));
+    if (j >= 0) foods[j] = updated;
+    setSyncState('ok', '保存しました ' + nowHm());
+    showToast('更新しました');
+  } catch (e) {
+    const j = foods.findIndex(f => String(f.id) === String(id));
+    if (j >= 0) foods[j] = before;
+    setSyncState('err', '保存失敗: ' + e.message);
+    showToast('保存失敗: ' + e.message);
+  }
+  renderAll();
+}
+
+// ========== 消費済み・削除 ==========
+
+/** 消費済みフラグを立てる／下ろす（論理削除）。失敗したら元に戻す */
+async function setConsumedFlag(id, consumed) {
+  const i = foods.findIndex(f => String(f.id) === String(id));
+  if (i < 0) return;
+
+  const before = foods[i];
+  foods[i] = Object.assign({}, before, { consumed: consumed });
+  renderAll();
+  setSyncState('busy', '保存中...');
+
+  try {
+    await gasCall({ action: 'consume', id: id, consumed: consumed });
+    setSyncState('ok', '保存しました ' + nowHm());
+  } catch (e) {
+    const j = foods.findIndex(f => String(f.id) === String(id));
+    if (j >= 0) foods[j] = before;
+    renderAll();
+    setSyncState('err', '保存失敗: ' + e.message);
+    showToast('保存失敗: ' + e.message);
+  }
+}
+
+/** カードのチェックボタンから。取り消せるようにトーストへ操作を添える */
+function consumeFromCard(id) {
+  const food = foods.find(f => String(f.id) === String(id));
+  if (!food) return;
+  showToast(food.name + ' を消費済みにしました', '元に戻す', () => setConsumedFlag(id, false));
+  setConsumedFlag(id, true);
+}
+
+/** 編集モーダルの「消費済みにする」 */
+function consumeFromSheet() {
+  const id = sheetFoodId;
+  if (!id) return;
+  closeSheet();
+  consumeFromCard(id);
+}
+
+/**
+ * 編集モーダルの「削除」。行ごと消すので取り消せない。
+ * 食べ終えただけなら「消費済みにする」を使う方がよい。
+ */
+async function removeFromSheet() {
+  const id = sheetFoodId;
+  const food = foods.find(f => String(f.id) === String(id));
+  if (!food) return;
+  if (!confirm('「' + food.name + '」を完全に削除しますか？\n\n食べ終えただけなら「消費済みにする」を使うと、記録が残ります。')) return;
+
+  closeSheet();
+  const before = foods.slice();
+  foods = foods.filter(f => String(f.id) !== String(id));
+  renderAll();
+  setSyncState('busy', '削除中...');
+
+  try {
+    await gasCall({ action: 'delete', id: id });
+    setSyncState('ok', '削除しました ' + nowHm());
+    showToast('削除しました');
+  } catch (e) {
+    foods = before;
+    renderAll();
+    setSyncState('err', '削除失敗: ' + e.message);
+    showToast('削除失敗: ' + e.message);
+  }
 }
 
 // ========== 復帰時の処理 ==========
@@ -622,6 +811,7 @@ function setupCapacitor() {
 // ========== 初期化 ==========
 loadSettings();
 renderAll();
+setupListTaps();
 setupSwipe();
 setupCapacitor();
 if (gasUrl) {

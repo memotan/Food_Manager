@@ -322,11 +322,20 @@ function decorate_(f) {
   return f;
 }
 
+/**
+ * 期限日の昇順に並べる（期限日を登録していないものは末尾）。
+ *
+ * 期限なしどうしは 0 を返すこと。1 を返すと a>b と b>a が同時に成立する
+ * 不正な比較になり、期限なしが2件以上あると順序が安定しない。
+ */
 function sortByExpiry_(list) {
   return list.slice().sort(function (a, b) {
-    if (!a.expiryDate) return 1;
-    if (!b.expiryDate) return -1;
-    return a.expiryDate < b.expiryDate ? -1 : (a.expiryDate > b.expiryDate ? 1 : 0);
+    var ax = a.expiryDate || '';
+    var bx = b.expiryDate || '';
+    if (!ax && !bx) return 0;
+    if (!ax) return 1;
+    if (!bx) return -1;
+    return ax < bx ? -1 : (ax > bx ? 1 : 0);
   });
 }
 
