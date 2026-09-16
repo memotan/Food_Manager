@@ -7,9 +7,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="食品管理">
-<title>食品管理</title>
+<meta name="apple-mobile-web-app-title" content="Food Inv. Manager">
+<title>Food Inv. Manager</title>
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@400..900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -20,6 +23,8 @@
   --accent:#43a047;--accent2:#2e7d32;
   --danger:#e53935;--danger-bg:#3b1010;--danger-fg:#ef9a9a;
   --warn:#fb8c00;--warn-bg:#3b2100;--warn-fg:#ffcc80;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --num:'Doto',var(--mono),monospace;
   --safe-top:env(safe-area-inset-top,0px);
   --safe-bottom:env(safe-area-inset-bottom,0px);
 }
@@ -29,7 +34,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 #mainScreen{display:flex;flex-direction:column;height:100%}
 
 .header{padding:calc(16px + var(--safe-top)) 16px 8px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
-.header h1{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.header h1{font-family:var(--num);font-size:clamp(16px,5.2vw,24px);font-weight:900;letter-spacing:.09em;text-transform:uppercase;display:flex;align-items:center;gap:9px;white-space:nowrap}
+.header-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;align-self:flex-start;margin-top:1px;flex-shrink:0}
 .hicons{display:flex;gap:18px;color:var(--text2);font-size:20px}
 .hicons i{cursor:pointer;padding:4px}
 
@@ -40,6 +46,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
 .scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .food-list{padding:0 16px 8px;display:flex;flex-direction:column;gap:8px}
+.food-list.slide-next{animation:slideNext .18s ease-out}
+.food-list.slide-prev{animation:slidePrev .18s ease-out}
+@keyframes slideNext{from{transform:translateX(26px);opacity:.3}to{transform:none;opacity:1}}
+@keyframes slidePrev{from{transform:translateX(-26px);opacity:.3}to{transform:none;opacity:1}}
 
 .food-card{
   background:var(--surface);border-radius:14px;padding:13px 14px;
@@ -55,6 +65,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .fname{font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fqty{font-size:12px;color:var(--text3);margin-left:6px}
 .fmeta{font-size:12px;color:var(--text3);margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
+.fdate{font-family:var(--mono)}
 .fkind{color:var(--text2)}
 
 .badge{flex-shrink:0;font-size:11px;font-weight:600;padding:4px 10px;border-radius:10px;background:var(--surface2);color:var(--text2);white-space:nowrap}
@@ -115,6 +126,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .seg{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .seg button{flex:1;min-width:74px;padding:9px 10px;border-radius:12px;font-size:13px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;transition:all .15s}
 .seg button.sel{background:var(--surface2);border-color:var(--accent);color:var(--text)}
+.seg.dim{opacity:.35;pointer-events:none}
 .row2{display:flex;gap:12px}
 .row2>div{flex:1;min-width:0}
 .sheet-save{width:100%;padding:14px;border-radius:12px;background:var(--accent);border:none;color:#fff;font-size:15px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:4px;transition:background .15s}
@@ -128,7 +140,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
   <div id="mainScreen">
     <div class="header">
-      <h1>食品管理</h1>
+      <h1>Food Inv. Manager<span class="header-dot"></span></h1>
       <div class="hicons">
         <i class="ti ti-refresh" onclick="syncFromSheet()" title="再読み込み" aria-hidden="true"></i>
         <i class="ti ti-settings" onclick="showSettings()" title="設定" aria-hidden="true"></i>
@@ -203,8 +215,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
     <div class="row2">
       <div>
-        <label class="sheet-label" for="inpExpiry">期限日</label>
-        <input class="sheet-inp" id="inpExpiry" type="date">
+        <label class="sheet-label" for="inpExpiry">期限日（任意）</label>
+        <input class="sheet-inp" id="inpExpiry" type="date" oninput="updateKindState()">
       </div>
       <div>
         <label class="sheet-label" for="inpBought">購入日</label>
@@ -337,7 +349,7 @@ function statusOf(food) {
 }
 
 function expiryLabel(d) {
-  if (d === null) return '期限未設定';
+  if (d === null) return '期限なし';
   if (d < 0) return (-d) + '日超過';
   if (d === 0) return '今日まで';
   return 'あと' + d + '日';
@@ -372,9 +384,51 @@ function renderTabs() {
 }
 
 function switchPlace(place) {
+  const from = PLACES.indexOf(currentPlace);
+  const to = PLACES.indexOf(place);
+  if (to < 0 || to === from) return;
+
   currentPlace = place;
   renderAll();
   document.getElementById('scrollArea').scrollTop = 0;
+
+  // 切り替わった向きに合わせて軽く滑らせる
+  const list = document.getElementById('foodList');
+  list.classList.remove('slide-next', 'slide-prev');
+  void list.offsetWidth;   // アニメーションを頭から再生させるため
+  list.classList.add(to > from ? 'slide-next' : 'slide-prev');
+}
+
+// ========== スワイプでタブを行き来する ==========
+const SWIPE_MIN_X = 60;     // これ未満の横移動は無視する
+const SWIPE_MAX_MS = 600;   // ゆっくりした動きはスワイプとみなさない
+
+/**
+ * touchstart と touchend だけを見る。touchmove を握らず preventDefault もしないので、
+ * 縦スクロールの邪魔をしない。
+ */
+function setupSwipe() {
+  const area = document.getElementById('scrollArea');
+  let x0 = 0, y0 = 0, t0 = 0;
+
+  area.addEventListener('touchstart', e => {
+    const t = e.changedTouches[0];
+    x0 = t.clientX; y0 = t.clientY; t0 = Date.now();
+  }, { passive: true });
+
+  area.addEventListener('touchend', e => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - x0;
+    const dy = t.clientY - y0;
+
+    if (Date.now() - t0 > SWIPE_MAX_MS) return;
+    if (Math.abs(dx) < SWIPE_MIN_X) return;
+    if (Math.abs(dx) < Math.abs(dy) * 1.5) return;   // 縦方向が優勢ならスクロール操作
+
+    const i = PLACES.indexOf(currentPlace);
+    const next = i + (dx < 0 ? 1 : -1);              // 左へ払う = 次のタブ
+    if (next >= 0 && next < PLACES.length) switchPlace(PLACES[next]);
+  }, { passive: true });
 }
 
 /** 指定の保管場所の食品を、期限が近い順（期限未設定は末尾）に返す */
@@ -405,15 +459,21 @@ function renderList() {
     const cls = (st === 'expired' || st === 'soon') ? ' ' + st : '';
     const badgeCls = (st === 'expired' || st === 'soon') ? ' ' + st : '';
     const qty = Number(f.quantity) > 1 ? `<span class="fqty">×${escHtml(f.quantity)}</span>` : '';
-    const bought = f.boughtDate ? `<span>購入 ${escHtml(shortDate(f.boughtDate))}</span>` : '';
+
+    // 期限を登録していない食品もあるので、あるものだけを並べる
+    const meta = [];
+    if (f.expiryDate) {
+      meta.push(`<span class="fkind">${escHtml(f.kind)} <span class="fdate">${escHtml(f.expiryDate)}</span></span>`);
+    }
+    if (f.boughtDate) {
+      meta.push(`<span>購入 <span class="fdate">${escHtml(shortDate(f.boughtDate))}</span></span>`);
+    }
+
     return `
       <div class="food-card${cls}${f.pending ? ' pending' : ''}">
         <div class="fbody">
           <div class="fname">${escHtml(f.name)}${qty}</div>
-          <div class="fmeta">
-            <span class="fkind">${escHtml(f.kind)} ${escHtml(f.expiryDate || '—')}</span>
-            ${bought}
-          </div>
+          <div class="fmeta">${meta.join('')}</div>
         </div>
         <span class="badge${badgeCls}">${escHtml(expiryLabel(d))}</span>
       </div>`;
@@ -447,6 +507,7 @@ function openSheet() {
   document.getElementById('inpQty').value = '1';
   document.getElementById('sheetErr').textContent = '';
   renderSegs();
+  updateKindState();
 
   document.getElementById('sheetBackdrop').classList.add('open');
   document.getElementById('editSheet').classList.add('open');
@@ -468,21 +529,28 @@ function renderSegs() {
 function pickPlace(p) { sheetPlace = p; renderSegs(); }
 function pickKind(k) { sheetKind = k; renderSegs(); }
 
+/** 期限日が未入力なら、期限種別は意味を持たないので選べなくする */
+function updateKindState() {
+  const hasExpiry = !!document.getElementById('inpExpiry').value;
+  document.getElementById('segKind').classList.toggle('dim', !hasExpiry);
+}
+
 async function saveSheet() {
   const err = document.getElementById('sheetErr');
   err.textContent = '';
 
+  const expiryDate = document.getElementById('inpExpiry').value;
   const food = {
     name: document.getElementById('inpName').value.trim(),
     place: sheetPlace,
-    kind: sheetKind,
-    expiryDate: document.getElementById('inpExpiry').value,
+    // 期限が無ければ種別も持たせない（「賞味期限 なし」のような表示を避ける）
+    kind: expiryDate ? sheetKind : '',
+    expiryDate: expiryDate,
     boughtDate: document.getElementById('inpBought').value,
     quantity: Number(document.getElementById('inpQty').value) || 1
   };
 
   if (!food.name) { err.textContent = '商品名を入力してください'; return; }
-  if (!food.expiryDate) { err.textContent = '期限日を入力してください'; return; }
   if (!gasUrl) { err.textContent = '先に設定からGAS URLを登録してください'; return; }
 
   // 楽観的更新：先に一覧へ出しておき、GAS の応答で確定させる
@@ -554,6 +622,7 @@ function setupCapacitor() {
 // ========== 初期化 ==========
 loadSettings();
 renderAll();
+setupSwipe();
 setupCapacitor();
 if (gasUrl) {
   syncFromSheet();

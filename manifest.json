@@ -1,6 +1,6 @@
 {
-  "name": "食品管理",
-  "short_name": "食品管理",
+  "name": "Food Inv. Manager",
+  "short_name": "Food Inv.",
   "description": "冷蔵・冷凍・常温の食品の期限と在庫を管理するPWA",
   "start_url": "./",
   "scope": "./",

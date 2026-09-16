@@ -68,7 +68,7 @@ function dispatch_(body) {
 /**
  * 一覧取得。
  * @param {boolean} includeConsumed true なら消費済みも含める（既定は除外）
- * @return {Array<Object>} 期限日の昇順（期限日なしは末尾）
+ * @return {Array<Object>} 期限日の昇順（期限日を登録していないものは末尾）
  */
 function listFoods(includeConsumed) {
   var rows = readAll_();
@@ -80,6 +80,7 @@ function listFoods(includeConsumed) {
 
 /**
  * 新規追加。ID と更新日時はサーバ側で採番する。
+ * expiryDate は任意（空なら kind も空になり、status は 'unknown' になる）。
  * @param {Object} food { name, place, boughtDate, kind, expiryDate, quantity }
  * @return {Object} 追加された食品（ID 付き）
  */
@@ -143,6 +144,7 @@ function deleteFood(id) {
 /**
  * 期限切れ・期限間近の判定。
  * 残日数 daysLeft が days 以下（期限切れのマイナスを含む）のものを返す。
+ * 期限日を登録していない食品は対象外。
  * @param {number=} days しきい値。省略時は DEFAULT_WARN_DAYS
  * @return {Array<Object>} 期限日の昇順
  */
@@ -288,11 +290,16 @@ function normalize_(f) {
   var place = String(f.place || '').trim();
   if (PLACES.indexOf(place) < 0) throw new Error('保管場所は ' + PLACES.join('／') + ' のいずれかです');
 
-  var kind = String(f.kind || '').trim();
-  if (KINDS.indexOf(kind) < 0) throw new Error('期限種別は ' + KINDS.join('／') + ' のいずれかです');
-
+  // 期限日は任意。在庫の数だけを管理したい食品もあるため必須にしない
   var expiry = normDate_(f.expiryDate);
-  if (!expiry) throw new Error('期限日は必須です（yyyy-MM-dd）');
+
+  // 期限が無ければ種別も持たせない。期限があるなら種別は必須
+  var kind = String(f.kind || '').trim();
+  if (!expiry) {
+    kind = '';
+  } else if (KINDS.indexOf(kind) < 0) {
+    throw new Error('期限種別は ' + KINDS.join('／') + ' のいずれかです');
+  }
 
   var qty = Number(f.quantity);
   if (!isFinite(qty) || qty < 0) qty = 1;

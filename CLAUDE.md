@@ -2,7 +2,7 @@
 
 ## プロジェクト概要
 
-**Food Manager（食品管理）** — GitHub Pages 上で動作するモバイルファーストの PWA。
+**Food Inv. Manager** — GitHub Pages 上で動作するモバイルファーストの PWA。
 冷蔵・冷凍・常温にある食品の期限と在庫を管理し、GAS のウェブアプリ経由で
 Google スプレッドシートに読み書きする。
 
@@ -10,7 +10,8 @@ Google スプレッドシートに読み書きする。
 
 - フロントエンドは **単一の HTML ファイル**（インライン CSS + バニラ JS、ビルド工程なし）
 - バックエンドは GAS のウェブアプリ。NeoNoting と違い、**GAS のコードもこの repo に入っている**（`gas/Code.gs`）
-- 依存は CDN の Tabler Icons (`@tabler/icons-webfont`) のみ。フレームワーク・パッケージマネージャなし
+- 依存は CDN の Tabler Icons (`@tabler/icons-webfont`) と Google Fonts (Doto / JetBrains Mono) のみ。
+  フレームワーク・パッケージマネージャなし
 
 ## ファイル構成
 
@@ -51,7 +52,10 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 { id, name, place, boughtDate, kind, expiryDate, quantity, consumed, updatedAt, daysLeft, status }
 ```
 
-- `place` は `冷蔵` / `冷凍` / `常温`、`kind` は `賞味期限` / `消費期限`（GAS 側の `normalize_` で検証）
+- `place` は `冷蔵` / `冷凍` / `常温`（必須）。`kind` は `賞味期限` / `消費期限`（GAS 側の `normalize_` で検証）
+- **`expiryDate` は任意。** 在庫の数だけ管理したい食品があるため必須にしない。
+  空のときは `kind` も空に揃え（`normalize_`）、`daysLeft` は `null`、`status` は `unknown` になる。
+  一覧では末尾に並び、色分け・タブの警告件数・`expiring` の対象から外れる
 - 日付は **すべて `yyyy-MM-dd` の文字列**。Date 型で持たないのは、タイムゾーンによる 1 日ずれを避けるため
 - `daysLeft` は期限日までの残日数（今日 = 0、超過はマイナス）。`status` は `expired`/`soon`/`ok`/`unknown`
 
@@ -80,11 +84,31 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 - 現状の連携: Android の戻るボタン（モーダル → 設定画面 → 終了）と、
   アプリ復帰時の再描画・再同期（`handleResume()`）
 
+## 見た目の約束
+
+姉妹プロジェクト **Budget Manager（`memotan/kakeibo`）** とフォントを揃えている。
+
+- Google Fonts から `Doto` と `JetBrains Mono` を読む。CSS 変数は `--num`（Doto 優先）と `--mono`
+- `.header h1` は `var(--num)` / `font-weight:900` / `letter-spacing:.09em` / `text-transform:uppercase`。
+  末尾にアクセント色のドット（`.header-dot`）を置く
+- **`font-size` は `clamp()` で指定すること。** タイトルは `white-space:nowrap` なので、
+  固定サイズにすると幅の狭い端末で右上のアイコンを押し出す（320px まで確認済み）
+- 日付（`.fdate`）は `var(--mono)` で桁を揃える
+
+## 操作
+
+- タブのタップに加えて、一覧の**左右スワイプ**でも保管場所を移動できる（`setupSwipe()`）
+- スワイプ判定は `touchstart` と `touchend` だけを見る。**`touchmove` を握らず `preventDefault` も
+  しないこと**（縦スクロールを壊すため）。リスナは `{ passive: true }` で登録する
+- 横移動が 60px 未満、600ms 超、または縦移動が優勢（横 < 縦 × 1.5）なら無視する
+- 端では止まる（巡回しない）
+
 ## 実装状況
 
 段階的に進めている。
 
 - **完了（第 1 段階）**: 一覧表示 / 追加（モーダル）/ 保管場所タブ / 期限順ソート / 色分け・バッジ / しきい値設定
+- **完了**: 期限日の任意化（在庫のみの管理）、スワイプでのタブ移動、Budget Manager に揃えたタイトル
 - **未着手（第 2 段階）**: 編集・削除の UI。GAS 側の `update` / `consume` / `delete` は実装済みなので、
   カードのタップで既存のモーダルを編集モードで開く形が素直
 - **完了**: Capacitor による Android アプリ化（`capacitor-app/`）

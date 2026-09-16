@@ -1,6 +1,6 @@
 {
   "appId": "com.foodmanager.app",
-  "appName": "食品管理",
+  "appName": "Food Inv. Manager",
   "webDir": "www",
   "plugins": {
     "StatusBar": {
