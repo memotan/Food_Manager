@@ -2,6 +2,10 @@
   "appId": "com.foodmanager.app",
   "appName": "Food Inv. Manager",
   "webDir": "www",
+  "server": {
+    "url": "https://memotan.github.io/Food_Manager/",
+    "androidScheme": "https"
+  },
   "plugins": {
     "StatusBar": {
       "backgroundColor": "#111111",

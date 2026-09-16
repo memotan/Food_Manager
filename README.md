@@ -261,11 +261,8 @@ npm run sync
 
 ### 構成
 
-既定では **web アセットをアプリに同梱する**（`capacitor.config.json` に `server.url` を書かない）。
-GitHub Pages が未公開でも動き、起動も速い。
-
-GitHub Pages 側を読みに行く方式（NeoNoting と同じ）にしたい場合は、
-`capacitor.config.json` に次を足して `npm run sync` する。
+**アプリは GitHub Pages をそのまま読みに行く**（`capacitor.config.json` の `server.url`）。
+NeoNoting と同じ方式。
 
 ```json
   "server": {
@@ -274,8 +271,16 @@ GitHub Pages 側を読みに行く方式（NeoNoting と同じ）にしたい場
   }
 ```
 
-- 利点: `index.html` を直して push するだけでアプリ側にも反映される（APK の作り直しが不要）
-- 欠点: 起動のたびに通信が必要。Pages が落ちているとアプリも開けない
+- `index.html` を直して push すれば、**APK を作り直さなくてもアプリ側に反映される**
+- 起動のたびに通信が必要。Pages が落ちているとアプリも開けない
+  （そもそも GAS との通信が要るので、圏外では使えない）
+- **更新が見えないときは、設定画面の「最新に更新」を押す。**
+  WebView が古い `index.html` を抱えていることがあるため、クエリを付けて読み直す
+
+APK を作り直す必要があるのは、`capacitor.config.json` やプラグインを変えたときだけ。
+
+> `webDir`（`www/`）は `cap sync` が要求するので残してある。`server.url` があるときは
+> 実際には使われない。
 
 ### 実装されている連携
 
@@ -299,24 +304,30 @@ HTTP 実装に差し替わり CORS の制約を受けなくなる。
 ## バージョン
 
 設定画面の一番下に、**アプリ側と GAS 側のバージョン**が並んで出る。
+その下の「最新に更新」で、キャッシュを避けて読み込み直せる。
 
 ```
-アプリ        ver 1.0.0
+アプリ        ver 1.1.0
 GAS          ver 1.0.0
+       [ 最新に更新 ]
 ```
 
-GitHub Pages は push で自動更新されるが、**GAS は手で貼り直して再デプロイしないと古いまま**。
-番号が食い違っていると、この画面が再デプロイの手順つきで警告を出す。
+フロント（`index.html`）は push で自動更新されるが、**GAS は手で貼り直して再デプロイしないと
+古いまま**。GAS が必要な版を下回っていると、この画面が手順つきで警告を出す。
 「保存できない」「エラーが出る」といったときは、まずここを見ると切り分けが早い。
 
-番号は 2 か所に書いてある。**片方だけ直さないこと。**
+番号は 3 か所にある。
 
-| 場所 | 定数 |
-|---|---|
-| `index.html` | `const APP_VERSION = '1.0.0';` |
-| `gas/Code.gs` | `var GAS_VERSION = '1.0.0';` |
+| 場所 | 定数 | いつ上げるか |
+|---|---|---|
+| `index.html` | `APP_VERSION` | フロントを直したとき（気兼ねなく） |
+| `gas/Code.gs` | `GAS_VERSION` | `Code.gs` を直したとき |
+| `index.html` | `REQUIRED_GAS_VERSION` | **`Code.gs` の仕様を変えたときだけ** |
 
-GAS 側は `ping` と `doGet` でこの番号を返す。ブラウザで GAS の URL を直接開いても確認できる。
+警告が出るのは `GAS_VERSION < REQUIRED_GAS_VERSION` のときだけ。フロントだけ直したときに
+中身の変わっていない GAS の貼り直しを強いないよう、こう分けてある。
+
+GAS 側は `ping` と `doGet` で番号を返す。ブラウザで GAS の URL を直接開いても確認できる。
 
 ## 通知（将来の拡張）
 

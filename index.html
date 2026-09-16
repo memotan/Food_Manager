@@ -114,6 +114,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .s-ver{margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
 .s-ver-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text4);padding:3px 0}
 .s-ver-row b{font-family:var(--mono);font-weight:400;color:var(--text3);letter-spacing:.04em}
+.s-ver .s-btn{margin-top:14px;margin-bottom:0;padding:11px;font-size:14px}
 .s-ver-warn{margin-top:10px;font-size:12px;line-height:1.6;color:var(--warn-fg);background:var(--warn-bg);border-radius:10px;padding:10px 12px}
 
 /* ===== トースト ===== */
@@ -214,6 +215,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <div class="s-ver">
         <div class="s-ver-row"><span>アプリ</span><b id="appVer">—</b></div>
         <div class="s-ver-row"><span>GAS</span><b id="gasVer">—</b></div>
+        <button class="s-btn sec" id="reloadBtn" onclick="forceReload()">
+          <i class="ti ti-refresh" style="font-size:15px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>
+          最新に更新
+        </button>
         <div class="s-ver-warn" id="verWarn" hidden></div>
       </div>
     </div>
@@ -269,9 +274,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
 <script>
 // ========== 定数 ==========
-// アプリ（この index.html）のバージョン。gas/Code.gs の GAS_VERSION と揃えること。
-// 揃っていないと設定画面が警告を出す（GAS は手で貼り直して再デプロイする必要があるため）
-const APP_VERSION = '1.0.0';
+// アプリ（この index.html）のバージョン。GitHub Pages への push で自動更新されるので、
+// 直したら気兼ねなく上げてよい
+const APP_VERSION = '1.1.0';
+
+// このアプリが動くのに必要な gas/Code.gs の最低バージョン。
+// GAS は手で貼り直して再デプロイする必要があるため、これを下回っていたら設定画面が警告を出す。
+// **Code.gs の仕様を変えたときだけ**ここを上げること。フロントだけ直したときに上げると、
+// 中身の変わっていない GAS の貼り直しを強いることになる
+const REQUIRED_GAS_VERSION = '1.0.0';
 
 const PLACES = ['冷蔵', '冷凍', '常温'];
 const KINDS  = ['賞味期限', '消費期限'];
@@ -327,10 +338,11 @@ async function checkVersions() {
   gasEl.textContent = '確認中...';
   try {
     const info = await gasCall({ action: 'ping' });
-    const v = info.version || '不明';
-    gasEl.textContent = 'ver ' + v;
-    if (v !== APP_VERSION) {
-      warnEl.textContent = 'アプリと GAS のバージョンが違います。gas/Code.gs を GAS エディタに貼り直し、'
+    const v = info.version || '';
+    gasEl.textContent = v ? 'ver ' + v : 'ver 不明';
+    if (!v || cmpVer(v, REQUIRED_GAS_VERSION) < 0) {
+      warnEl.textContent = 'GAS が古いようです（必要: ver ' + REQUIRED_GAS_VERSION + ' 以上）。'
+        + 'gas/Code.gs を GAS エディタに貼り直し、'
         + '「デプロイ → デプロイを管理 → 編集 → バージョン: 新バージョン」まで行ってください。';
       warnEl.hidden = false;
     }
@@ -340,6 +352,29 @@ async function checkVersions() {
     warnEl.textContent = 'GAS から応答がありません（' + e.message + '）。URL とデプロイの状態をご確認ください。';
     warnEl.hidden = false;
   }
+}
+
+/** 'x.y.z' どうしを比べる。a<b なら -1、a>b なら 1、同じなら 0 */
+function cmpVer(a, b) {
+  const pa = String(a).split('.');
+  const pb = String(b).split('.');
+  for (let i = 0; i < 3; i++) {
+    const x = parseInt(pa[i], 10) || 0;
+    const y = parseInt(pb[i], 10) || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
+
+/**
+ * キャッシュを避けて読み込み直す。
+ *
+ * Android アプリは GitHub Pages をそのまま読んでいるので、WebView が古い index.html を
+ * 抱えていると更新が見えない。クエリを付けて別 URL にすることで確実に取り直す。
+ */
+function forceReload() {
+  const base = location.href.split(/[?#]/)[0];
+  location.replace(base + '?t=' + Date.now());
 }
 
 function showMain() {

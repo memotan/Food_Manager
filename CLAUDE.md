@@ -76,8 +76,17 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 ## Capacitor（Android アプリ）
 
 `capacitor-app/` がルートの `index.html` を包む。Capacitor 8（NeoNoting は 6）。
-既定では web アセットを同梱する構成で、`server.url` は書いていない
-（GitHub Pages が未公開でも動くようにするため）。切り替え方は README を参照。
+
+**アプリは GitHub Pages をそのまま読む**（`capacitor.config.json` の `server.url`）。
+利用者は Android アプリしか使わないため、push しただけでアプリ側にも反映される構成にしてある。
+**この前提を崩さないこと**（同梱方式に戻すと、更新のたびに APK の作り直しが要る）。
+
+- `webDir`（`www/`）は `cap sync` が要求するので残してあるが、`server.url` があるときは使われない
+- WebView が古い `index.html` を抱えることがあるので、設定画面に「最新に更新」
+  （`forceReload()`）を置いてある。クエリを付けて別 URL にして読み直す
+- **同梱方式から切り替えたので、WebView のオリジンが `https://localhost` から
+  `https://memotan.github.io` に変わっている。** localStorage はオリジンごとなので、
+  切り替え後の初回は GAS URL の再入力が要る
 
 - **アプリ本体は必ずルートの `index.html` を直す。** `capacitor-app/www/` は生成物で、
   次の `npm run sync` に上書きされる
@@ -151,12 +160,20 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 
 ## バージョン
 
-`index.html` の `APP_VERSION` と `gas/Code.gs` の `GAS_VERSION` に同じ番号を書く。
-設定画面が `ping` で GAS 側の番号を取り、食い違っていれば再デプロイを促す警告を出す
-（フロントは push で自動更新されるのに GAS は手作業なので、古いまま気づかない事故が起きやすい）。
+番号は 3 つ。**役割が違うので混ぜないこと。**
 
-- **どちらかを直したら、両方の番号を上げること。** 片方だけ直すと警告が出たままになる
-- GAS 側は `ping` と `doGet` の両方で返す
+| 定数 | 場所 | いつ上げるか |
+|---|---|---|
+| `APP_VERSION` | `index.html` | フロントを直したとき。push で自動更新されるので気兼ねなく |
+| `GAS_VERSION` | `gas/Code.gs` | `Code.gs` を直したとき |
+| `REQUIRED_GAS_VERSION` | `index.html` | **`Code.gs` の仕様を変えたときだけ** |
+
+設定画面が `ping` で GAS 側の番号を取り、`GAS_VERSION < REQUIRED_GAS_VERSION` のときだけ
+再デプロイを促す警告を出す（比較は `cmpVer()`）。
+
+- **フロントだけ直したときに `REQUIRED_GAS_VERSION` を上げないこと。**
+  中身の変わっていない GAS の貼り直しを強いることになる
+- GAS 側は `ping` と `doGet` の両方で番号を返す
 - 番号は手で管理する。ビルド工程がないので自動では埋め込めない
 
 ## デプロイ
