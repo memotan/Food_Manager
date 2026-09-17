@@ -70,7 +70,17 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
 .fbody{flex:1;min-width:0}
 .fname{font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fqty{font-size:12px;color:var(--text3);margin-left:6px}
+/* 数量の増減。カードとモーダルで見た目を揃える */
+.qty{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.qty-btn{width:30px;height:30px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:17px;line-height:1;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;padding:0;transition:all .12s}
+.qty-btn:active{background:var(--accent);border-color:var(--accent);color:#fff}
+.qty-btn:disabled{opacity:.25;pointer-events:none}
+.qty-val{min-width:30px;text-align:center;font-family:var(--mono);font-size:14px;color:var(--text2)}
+
+/* 一覧のカードでは一回り小さくし、バッジの下に置く */
+.fright{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.food-card .qty-btn{width:26px;height:26px;border-radius:8px;font-size:15px}
+.food-card .qty-val{min-width:22px;font-size:13px;color:var(--text3)}
 .fmeta{font-size:12px;color:var(--text3);margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
 .fdate{font-family:var(--mono)}
 .fkind{color:var(--text2)}
@@ -117,6 +127,37 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .s-ver .s-btn{margin-top:14px;margin-bottom:0;padding:11px;font-size:14px}
 .s-ver-warn{margin-top:10px;font-size:12px;line-height:1.6;color:var(--warn-fg);background:var(--warn-bg);border-radius:10px;padding:10px 12px}
 
+/* ===== カレンダー ===== */
+.calendar-screen{display:none;flex-direction:column;height:100%}
+.calendar-screen.active{display:flex}
+
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;flex-shrink:0}
+.cal-nav h3{font-family:var(--mono);font-size:16px;font-weight:500;letter-spacing:.04em}
+.cal-arrow{background:var(--surface);border:1px solid var(--border);color:var(--text2);width:34px;height:34px;border-radius:10px;font-size:16px;cursor:pointer;font-family:inherit;line-height:1}
+.cal-arrow:active{background:var(--surface2)}
+.cal-today-btn{background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;font-family:inherit;padding:4px 8px}
+
+.cal-dows{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 16px 6px;flex-shrink:0}
+.cal-dows span{text-align:center;font-size:11px;color:var(--text4)}
+.cal-dows span:first-child{color:var(--danger-fg)}
+.cal-dows span:last-child{color:#90caf9}
+
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 16px 12px;flex-shrink:0}
+.cal-cell{position:relative;aspect-ratio:1;min-height:40px;border:1px solid transparent;border-radius:10px;background:var(--surface);color:var(--text3);font-family:var(--mono);font-size:13px;cursor:pointer;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all .12s}
+.cal-cell.blank{background:transparent;pointer-events:none}
+.cal-cell.today{border-color:var(--text4);color:var(--text)}
+.cal-cell.sel{background:var(--text);color:var(--bg);border-color:var(--text)}
+.cal-cell:active{background:var(--surface2)}
+.cal-dot{width:14px;height:14px;border-radius:7px;font-size:9px;line-height:14px;font-weight:700;color:#fff;background:var(--text4)}
+.cal-dot.expired{background:var(--danger)}
+.cal-dot.soon{background:var(--warn)}
+.cal-dot.ok{background:var(--accent)}
+
+.cal-daylabel{padding:12px 16px 8px;font-size:13px;color:var(--text2);border-top:1px solid var(--border);flex-shrink:0;display:flex;justify-content:space-between;align-items:center}
+.cal-daylabel b{font-family:var(--mono);font-weight:500}
+.cal-list{flex:1;overflow-y:auto;padding:0 16px calc(16px + var(--safe-bottom));display:flex;flex-direction:column;gap:8px}
+.cal-place{font-size:10px;padding:2px 7px;border-radius:8px;background:var(--surface2);color:var(--text3);flex-shrink:0}
+
 /* ===== トースト ===== */
 .toast{position:fixed;bottom:calc(88px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:var(--text2);font-size:13px;padding:8px 16px;border-radius:20px;opacity:0;transition:all .3s;pointer-events:none;max-width:90%;text-align:center;z-index:300}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -140,6 +181,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .sheet-inp:focus{border-color:var(--text4)}
 .sheet-inp::placeholder{color:var(--text4)}
 .sheet-inp[type=date]{-webkit-appearance:none;min-height:46px}
+.sheet-body .qty{justify-content:center;gap:10px;margin-bottom:14px}
+.sheet-body .qty-btn{width:46px;height:46px;border-radius:12px;font-size:22px;background:var(--surface2)}
+.sheet-body .qty-val{min-width:64px;font-size:20px;color:var(--text)}
 .seg{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .seg button{flex:1;min-width:74px;padding:9px 10px;border-radius:12px;font-size:13px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;transition:all .15s}
 .seg button.sel{background:var(--surface2);border-color:var(--accent);color:var(--text)}
@@ -164,6 +208,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <div class="header">
       <h1>Food Inv. Manager<span class="header-dot"></span></h1>
       <div class="hicons">
+        <i class="ti ti-calendar-month" onclick="showCalendar()" title="カレンダー" aria-hidden="true"></i>
         <i class="ti ti-refresh" onclick="syncFromSheet()" title="再読み込み" aria-hidden="true"></i>
         <i class="ti ti-settings" onclick="showSettings()" title="設定" aria-hidden="true"></i>
       </div>
@@ -184,6 +229,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
         <span class="smsg" id="syncMsg">未接続 — 設定からGAS URLを入力してください</span>
       </div>
     </div>
+  </div>
+
+  <div class="calendar-screen" id="calendarScreen">
+    <div class="s-header">
+      <button class="s-back" onclick="showMain()" aria-label="戻る"><i class="ti ti-arrow-left" aria-hidden="true"></i></button>
+      <h2>カレンダー</h2>
+    </div>
+
+    <div class="cal-nav">
+      <button class="cal-arrow" onclick="calShift(-1)" aria-label="前の月">‹</button>
+      <h3 id="calTitle">—</h3>
+      <div>
+        <button class="cal-today-btn" onclick="calToday()">今日</button>
+        <button class="cal-arrow" onclick="calShift(1)" aria-label="次の月">›</button>
+      </div>
+    </div>
+
+    <div class="cal-dows"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+    <div class="cal-grid" id="calGrid"></div>
+
+    <div class="cal-daylabel"><b id="calDayLabel">—</b><span id="calDayCount"></span></div>
+    <div class="cal-list" id="calList"></div>
   </div>
 
   <div class="settings-screen" id="settingsScreen">
@@ -256,8 +323,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       </div>
     </div>
 
-    <label class="sheet-label" for="inpQty">数量</label>
-    <input class="sheet-inp" id="inpQty" type="number" min="0" step="1" value="1">
+    <span class="sheet-label">数量</span>
+    <div class="qty">
+      <button class="qty-btn" id="qtyMinus" onclick="bumpSheetQty(-1)" aria-label="数量を減らす">−</button>
+      <span class="qty-val" id="sheetQty">1</span>
+      <button class="qty-btn" onclick="bumpSheetQty(1)" aria-label="数量を増やす">＋</button>
+    </div>
 
     <button class="sheet-save" onclick="saveSheet()">保存</button>
     <div class="sheet-actions" id="sheetActions">
@@ -276,7 +347,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 // ========== 定数 ==========
 // アプリ（この index.html）のバージョン。GitHub Pages への push で自動更新されるので、
 // 直したら気兼ねなく上げてよい
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 // このアプリが動くのに必要な gas/Code.gs の最低バージョン。
 // GAS は手で貼り直して再デプロイする必要があるため、これを下回っていたら設定画面が警告を出す。
@@ -298,6 +369,10 @@ let currentPlace = PLACES[0];
 let sheetPlace = PLACES[0];
 let sheetKind = KINDS[0];
 let sheetFoodId = null;     // 編集中の食品のID。null なら新規追加
+let sheetQty = 1;           // モーダルで編集中の数量
+const qtyTimers = {};       // 一覧での増減をまとめて保存するためのタイマー
+let calYear = 0, calMonth = -1;   // カレンダーが表示している年と月（0始まり）
+let calSelected = '';             // カレンダーで選んでいる日 yyyy-MM-dd
 let lastSwipeAt = 0;        // スワイプ直後のタップを編集と取り違えないため
 let lastSyncAt = 0;         // 最後に同期できた時刻（復帰時の再同期の判定に使う）
 
@@ -379,7 +454,135 @@ function forceReload() {
 
 function showMain() {
   document.getElementById('settingsScreen').classList.remove('active');
+  document.getElementById('calendarScreen').classList.remove('active');
   document.getElementById('mainScreen').style.display = 'flex';
+}
+
+// ========== カレンダー ==========
+
+function isCalendarOpen() {
+  return document.getElementById('calendarScreen').classList.contains('active');
+}
+
+function showCalendar() {
+  const t = new Date();
+  if (calMonth < 0) { calYear = t.getFullYear(); calMonth = t.getMonth(); }
+  if (!calSelected) calSelected = todayStr();
+  document.getElementById('calendarScreen').classList.add('active');
+  document.getElementById('mainScreen').style.display = 'none';
+  renderCalendar();
+}
+
+/** 表示する月をずらす */
+function calShift(delta) {
+  calMonth += delta;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+
+/** 今日のある月へ戻り、今日を選ぶ */
+function calToday() {
+  const t = new Date();
+  calYear = t.getFullYear();
+  calMonth = t.getMonth();
+  calSelected = todayStr();
+  renderCalendar();
+}
+
+function selectCalDay(dateStr) {
+  calSelected = dateStr;
+  renderCalendar();
+}
+
+/** 期限日ごとに食品をまとめる。保管場所では絞らない（月全体を見渡すため） */
+function foodsByExpiry() {
+  const map = {};
+  foods.forEach(f => {
+    if (f.consumed || !f.expiryDate) return;
+    (map[f.expiryDate] = map[f.expiryDate] || []).push(f);
+  });
+  return map;
+}
+
+/** その日のうち一番差し迫っている状態を返す */
+function worstStatus(list) {
+  if (list.some(f => statusOf(f) === 'expired')) return 'expired';
+  if (list.some(f => statusOf(f) === 'soon')) return 'soon';
+  return 'ok';
+}
+
+function renderCalendar() {
+  const byDate = foodsByExpiry();
+  const today = todayStr();
+
+  document.getElementById('calTitle').textContent = calYear + '年' + (calMonth + 1) + '月';
+
+  const first = new Date(calYear, calMonth, 1);
+  const days = new Date(calYear, calMonth + 1, 0).getDate();
+  const cells = [];
+
+  // 月初の曜日ぶんだけ空きを置く
+  for (let i = 0; i < first.getDay(); i++) cells.push('<div class="cal-cell blank"></div>');
+
+  for (let d = 1; d <= days; d++) {
+    const date = calYear + '-' + pad2(calMonth + 1) + '-' + pad2(d);
+    const list = byDate[date] || [];
+    const cls = ['cal-cell'];
+    if (date === today) cls.push('today');
+    if (date === calSelected) cls.push('sel');
+    const dot = list.length
+      ? `<span class="cal-dot ${worstStatus(list)}">${list.length}</span>`
+      : '<span class="cal-dot" style="visibility:hidden"></span>';
+    cells.push(`<button class="${cls.join(' ')}" data-date="${date}">${d}${dot}</button>`);
+  }
+
+  document.getElementById('calGrid').innerHTML = cells.join('');
+  renderCalDay(byDate[calSelected] || []);
+}
+
+const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+
+function renderCalDay(list) {
+  const m = calSelected.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const label = m
+    ? `${Number(m[2])}月${Number(m[3])}日（${DOW[new Date(calSelected + 'T00:00:00').getDay()]}）`
+    : '—';
+  document.getElementById('calDayLabel').textContent = label;
+  document.getElementById('calDayCount').textContent = list.length ? list.length + '件' : '';
+
+  const el = document.getElementById('calList');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state">この日に期限を迎える食品はありません。</div>';
+    return;
+  }
+
+  el.innerHTML = list.map(f => {
+    const st = statusOf(f);
+    const cls = (st === 'expired' || st === 'soon') ? ' ' + st : '';
+    const n = Number(f.quantity) || 0;
+    return `
+      <div class="food-card${cls}" data-id="${escHtml(f.id)}">
+        <span class="cal-place">${escHtml(f.place)}</span>
+        <div class="fbody">
+          <div class="fname">${escHtml(f.name)}</div>
+          <div class="fmeta"><span class="fkind">${escHtml(f.kind)}</span><span>×${n}</span></div>
+        </div>
+        <span class="badge${cls}">${escHtml(expiryLabel(daysUntil(f.expiryDate)))}</span>
+      </div>`;
+  }).join('');
+}
+
+/** カレンダーのタップ。日付の選択と、食品カードからの編集を受ける */
+function setupCalendarTaps() {
+  document.getElementById('calGrid').addEventListener('click', e => {
+    const cell = e.target.closest('.cal-cell');
+    if (cell && cell.dataset.date) selectCalDay(cell.dataset.date);
+  });
+  document.getElementById('calList').addEventListener('click', e => {
+    const card = e.target.closest('.food-card');
+    if (card && card.dataset.id) openSheet(card.dataset.id);
+  });
 }
 
 async function saveSettings() {
@@ -484,6 +687,7 @@ function shortDate(s) {
 function renderAll() {
   renderTabs();
   renderList();
+  if (isCalendarOpen()) renderCalendar();
 }
 
 function renderTabs() {
@@ -580,7 +784,13 @@ function renderList() {
     const st = statusOf(f);
     const cls = (st === 'expired' || st === 'soon') ? ' ' + st : '';
     const badgeCls = (st === 'expired' || st === 'soon') ? ' ' + st : '';
-    const qty = Number(f.quantity) > 1 ? `<span class="fqty">×${escHtml(f.quantity)}</span>` : '';
+    const n = Number(f.quantity) || 0;
+    const qty = `
+      <span class="qty">
+        <button class="qty-btn" data-delta="-1" ${n === 0 ? 'disabled' : ''} aria-label="減らす">−</button>
+        <span class="qty-val">${n}</span>
+        <button class="qty-btn" data-delta="1" aria-label="増やす">＋</button>
+      </span>`;
 
     // 期限を登録していない食品もあるので、あるものだけを並べる
     const meta = [];
@@ -596,10 +806,13 @@ function renderList() {
       <div class="food-card${cls}${f.pending ? ' pending' : ''}" data-id="${escHtml(f.id)}">
         <button class="chk" aria-label="消費済みにする"></button>
         <div class="fbody">
-          <div class="fname">${escHtml(f.name)}${qty}</div>
+          <div class="fname">${escHtml(f.name)}</div>
           <div class="fmeta">${meta.join('')}</div>
         </div>
-        <span class="badge${badgeCls}">${escHtml(expiryLabel(d))}</span>
+        <div class="fright">
+          <span class="badge${badgeCls}">${escHtml(expiryLabel(d))}</span>
+          ${qty}
+        </div>
       </div>`;
   }).join('');
 }
@@ -616,7 +829,9 @@ function setupListTaps() {
     const card = e.target.closest('.food-card');
     if (!card || !card.dataset.id) return;
 
-    if (e.target.closest('.chk')) consumeFromCard(card.dataset.id);
+    const qbtn = e.target.closest('.qty-btn');
+    if (qbtn) bumpCardQty(card.dataset.id, Number(qbtn.dataset.delta));
+    else if (e.target.closest('.chk')) consumeFromCard(card.dataset.id);
     else openSheet(card.dataset.id);
   });
 }
@@ -672,7 +887,7 @@ function openSheet(id) {
   document.getElementById('inpName').value = food ? food.name : '';
   document.getElementById('inpExpiry').value = food ? (food.expiryDate || '') : '';
   document.getElementById('inpBought').value = food ? (food.boughtDate || '') : todayStr();
-  document.getElementById('inpQty').value = food ? String(food.quantity) : '1';
+  setSheetQty(food ? Number(food.quantity) : 1);
   document.getElementById('sheetErr').textContent = '';
   // 消費済み・削除は、既にある食品にしか意味がない
   document.getElementById('sheetActions').style.display = food ? 'flex' : 'none';
@@ -697,6 +912,15 @@ function renderSegs() {
     `<button class="${k === sheetKind ? 'sel' : ''}" onclick="pickKind('${k}')">${escHtml(k)}</button>`).join('');
 }
 
+/** モーダルの数量を書き換える。0 未満にはしない */
+function setSheetQty(n) {
+  sheetQty = Math.max(0, isFinite(n) ? Math.round(n) : 1);
+  document.getElementById('sheetQty').textContent = String(sheetQty);
+  document.getElementById('qtyMinus').disabled = sheetQty === 0;
+}
+
+function bumpSheetQty(delta) { setSheetQty(sheetQty + delta); }
+
 function pickPlace(p) { sheetPlace = p; renderSegs(); }
 function pickKind(k) { sheetKind = k; renderSegs(); }
 
@@ -718,7 +942,7 @@ async function saveSheet() {
     kind: expiryDate ? sheetKind : '',
     expiryDate: expiryDate,
     boughtDate: document.getElementById('inpBought').value,
-    quantity: Number(document.getElementById('inpQty').value) || 1
+    quantity: sheetQty
   };
 
   if (!food.name) { err.textContent = '商品名を入力してください'; return; }
@@ -802,6 +1026,44 @@ async function setConsumedFlag(id, consumed) {
   }
 }
 
+/**
+ * 一覧で数量を増減する。
+ * 連打されるので、画面はすぐ書き換えて GAS への保存はまとめて 1 回にする。
+ */
+function bumpCardQty(id, delta) {
+  const i = foods.findIndex(f => String(f.id) === String(id));
+  if (i < 0) return;
+
+  const next = Math.max(0, (Number(foods[i].quantity) || 0) + delta);
+  if (next === Number(foods[i].quantity)) return;
+
+  foods[i] = Object.assign({}, foods[i], { quantity: next });
+  renderList();   // 数量は並び順にもタブのバッジにも影響しないので一覧だけでよい
+
+  clearTimeout(qtyTimers[id]);
+  setSyncState('busy', '保存中...');
+  qtyTimers[id] = setTimeout(() => saveQty(id), 800);
+}
+
+/** まとめ保存の本体。失敗したらシートから取り直して、ずれたままにしない */
+async function saveQty(id) {
+  delete qtyTimers[id];
+  const food = foods.find(f => String(f.id) === String(id));
+  if (!food) return;
+
+  try {
+    const updated = await gasCall({ action: 'update', food: { id: id, quantity: food.quantity } });
+    const j = foods.findIndex(f => String(f.id) === String(id));
+    // 応答を待つ間にさらに押されていることがあるので、数量は手元の値を残す
+    if (j >= 0) foods[j] = Object.assign({}, updated, { quantity: foods[j].quantity });
+    setSyncState('ok', '保存しました ' + nowHm());
+  } catch (e) {
+    setSyncState('err', '保存失敗: ' + e.message);
+    showToast('数量を保存できませんでした: ' + e.message);
+    syncFromSheet();
+  }
+}
+
 /** カードのチェックボタンから。取り消せるようにトーストへ操作を添える */
 function consumeFromCard(id) {
   const food = foods.find(f => String(f.id) === String(id));
@@ -877,7 +1139,8 @@ function setupCapacitor() {
   App.addListener('backButton', () => {
     if (document.getElementById('editSheet').classList.contains('open')) {
       closeSheet();
-    } else if (document.getElementById('settingsScreen').classList.contains('active')) {
+    } else if (document.getElementById('settingsScreen').classList.contains('active')
+            || isCalendarOpen()) {
       showMain();
     } else {
       App.exitApp();
@@ -895,6 +1158,7 @@ loadSettings();
 document.getElementById('appVer').textContent = 'ver ' + APP_VERSION;
 renderAll();
 setupListTaps();
+setupCalendarTaps();
 setupSwipe();
 setupCapacitor();
 if (gasUrl) {
