@@ -82,6 +82,10 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 **この前提を崩さないこと**（同梱方式に戻すと、更新のたびに APK の作り直しが要る）。
 
 - `webDir`（`www/`）は `cap sync` が要求するので残してあるが、`server.url` があるときは使われない
+- **`cap sync` は `strings.xml` を書き換えない。** `capacitor.config.json` の `appName` / `appId` が
+  使われるのは `cap add android` の瞬間だけで、以後は `android/` に残った値がランチャーの表示名に
+  なり続ける。そのため `npm run sync` の最後に `scripts/apply-native-name.mjs` を走らせて上書きする。
+  **アプリ名を変えたら、Android Studio でのビルドが要る**（web の中身と違い push では変わらない）
 - WebView が古い `index.html` を抱えることがあるので、設定画面に「最新に更新」
   （`forceReload()`）を置いてある。クエリを付けて別 URL にして読み直す
 - **同梱方式から切り替えたので、WebView のオリジンが `https://localhost` から

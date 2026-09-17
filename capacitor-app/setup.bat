@@ -24,7 +24,7 @@ call npx cap add android || goto :error
 echo.
 
 echo [5/5] Syncing...
-call npx cap sync || goto :error
+call npm run sync || goto :error
 echo.
 
 echo === Setup complete ===

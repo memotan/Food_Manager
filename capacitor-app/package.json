@@ -7,7 +7,8 @@
   "scripts": {
     "check": "node scripts/check-path.mjs",
     "copy": "node scripts/copy-www.mjs",
-    "sync": "npm run copy && cap sync",
+    "appname": "node scripts/apply-native-name.mjs",
+    "sync": "npm run copy && cap sync && npm run appname",
     "open": "cap open android",
     "build": "npm run sync && cap open android"
   },

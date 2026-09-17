@@ -261,12 +261,27 @@ Android Studio 上で実機・エミュレータへ実行する。APK が欲し�
 
 ### `index.html` を直したあと
 
+`server.url` で GitHub Pages を読んでいるので、**アプリ側は何もしなくても更新される**。
+`npm run sync` が要るのは、`capacitor.config.json` やプラグインを変えたときだけ。
+
 ```powershell
 cd capacitor-app
 npm run sync
 ```
 
-`npm run sync` は「ルートの `index.html` / `manifest.json` を `www/` にコピー」→「`cap sync`」を続けて行う。
+`npm run sync` は次の 3 つを続けて行う。
+
+1. ルートの `index.html` / `manifest.json` を `www/` にコピー
+2. `cap sync`（プラグインとネイティブ側の同期）
+3. `capacitor.config.json` の `appName` / `appId` を Android のリソースへ反映
+
+> **3 が要るのは、`cap sync` が `strings.xml` を書き換えないため。**
+> `appName` が使われるのは `cap add android` でプロジェクトを作る瞬間だけで、
+> 以後は `android/` に残った値がランチャーの表示名になり続ける。
+> 設定を直しても名前が変わらない、という取り違えを防ぐためにここで上書きしている。
+>
+> **アプリ名はネイティブのリソースなので、反映には Android Studio でのビルドが必要。**
+> web の中身と違って、push だけでは変わらない。
 
 > **`capacitor-app/www/` は生成物なので git で管理していない。** 手で編集しても
 > 次の `npm run sync` で上書きされる。直すのは必ずルートの `index.html`。
