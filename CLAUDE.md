@@ -60,6 +60,13 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 - **`category`（ジャンル）は任意。** `CATEGORIES` のいずれか。空欄や知らない値は `その他` に寄せる
   （フロントは `catOf()`、GAS は `normalize_`）。ジャンル列を足す前に登録した行は空欄なので、
   **弾かずに受け止めること**
+- **`CATEGORIES` は `index.html` と `gas/Code.gs` の 2 か所にある。必ず同じ内容・同じ並びに保つこと。**
+  ずれるとアプリで選んだジャンルが GAS 側で `その他` に落とされ、原因が分かりにくい
+  （`test_category.js` が両ファイルを読んで突き合わせている）。
+  **種類を増減したら `GAS_VERSION` と `REQUIRED_GAS_VERSION` を上げる**。
+  古い GAS のままだと新しいジャンルが黙って `その他` になるため
+- ジャンルの並びは**ジャンル順表示の並び**そのもの。近い性質のものを隣に置く。
+  末尾の `その他` は受け皿を兼ねるので、動かさない
 - **シートに列を足すときは必ず末尾に足す。** 途中に挿すと既存行の値がずれる。
   末尾なら古い行では空欄として読まれるだけで済む。読み書きは `Math.min(HEADERS.length, getMaxColumns())`
   で実際の幅に合わせ、書き戻す前には足りない列を `insertColumnsAfter` で広げる
@@ -222,7 +229,7 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 | `GAS_VERSION` | `gas/Code.gs` | `Code.gs` を直したとき |
 | `REQUIRED_GAS_VERSION` | `index.html` | **`Code.gs` の仕様を変えたときだけ** |
 
-現在: `APP_VERSION` 1.3.0 / `GAS_VERSION` 1.1.0 / `REQUIRED_GAS_VERSION` 1.1.0
+現在: `APP_VERSION` 1.4.0 / `GAS_VERSION` 1.2.0 / `REQUIRED_GAS_VERSION` 1.2.0
 
 設定画面が `ping` で GAS 側の番号を取り、`GAS_VERSION < REQUIRED_GAS_VERSION` のときだけ
 再デプロイを促す警告を出す（比較は `cmpVer()`）。
