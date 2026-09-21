@@ -15,21 +15,31 @@
  * ping で返しており、揃っていないとアプリの設定画面が警告を出す。
  * Code.gs を直したら、ここを上げたうえで GAS エディタに貼り直し、再デプロイすること。
  */
-var GAS_VERSION = '1.0.0';
+var GAS_VERSION = '1.1.0';
 
 var SHEET_NAME = '食品';
 
-/** 列の並び。変更したら COL も合わせること */
-var HEADERS = ['ID', '商品名', '保管場所', '購入日', '期限種別', '期限日', '数量', '消費済み', '更新日時'];
+/**
+ * 列の並び。変更したら COL も合わせること。
+ *
+ * 列を足すときは**必ず末尾に足す**。途中に挿すと、既にあるシートの値が
+ * ひとつずつずれてしまう。末尾なら、古いシートでは空欄として読まれるだけで済む
+ * （ジャンルは 10 列目として後から足した）。
+ */
+var HEADERS = ['ID', '商品名', '保管場所', '購入日', '期限種別', '期限日', '数量', '消費済み', '更新日時', 'ジャンル'];
 
 /** 列番号（1 始まり） */
 var COL = {
   ID: 1, NAME: 2, PLACE: 3, BOUGHT: 4, KIND: 5,
-  EXPIRY: 6, QTY: 7, CONSUMED: 8, UPDATED: 9
+  EXPIRY: 6, QTY: 7, CONSUMED: 8, UPDATED: 9, CATEGORY: 10
 };
 
 var PLACES = ['冷蔵', '冷凍', '常温'];
 var KINDS = ['賞味期限', '消費期限'];
+
+/** ジャンル。末尾の「その他」は、未設定のときの受け皿も兼ねる */
+var CATEGORIES = ['生鮮食品', 'インスタント', '保存食', '調味料', 'おやつ', '飲み物', 'その他'];
+var DEFAULT_CATEGORY = 'その他';
 
 /** 期限間近とみなす既定のしきい値（日）。フロント側の設定が優先される */
 var DEFAULT_WARN_DAYS = 3;
@@ -118,7 +128,7 @@ function updateFood(food) {
   var cur = found.record;
 
   // 渡されたキーだけを上書き（部分更新）
-  ['name', 'place', 'boughtDate', 'kind', 'expiryDate', 'quantity', 'consumed'].forEach(function (k) {
+  ['name', 'place', 'boughtDate', 'kind', 'expiryDate', 'quantity', 'category', 'consumed'].forEach(function (k) {
     if (food[k] !== undefined) cur[k] = food[k];
   });
 
@@ -127,7 +137,12 @@ function updateFood(food) {
   rec.consumed = cur.consumed === true;
   rec.updatedAt = nowStr_();
 
-  sheet_().getRange(found.rowIndex, 1, 1, HEADERS.length).setValues([toRow_(rec)]);
+  var sh = sheet_();
+  // 書き戻す前に、列が足りていることを確かめる（ジャンル列を足す前のシート対策）
+  if (sh.getMaxColumns() < HEADERS.length) {
+    sh.insertColumnsAfter(sh.getMaxColumns(), HEADERS.length - sh.getMaxColumns());
+  }
+  sh.getRange(found.rowIndex, 1, 1, HEADERS.length).setValues([toRow_(rec)]);
   return decorate_(rec);
 }
 
@@ -204,10 +219,18 @@ function notifyExpiringItems() {
 
 /**
  * シートとヘッダ行を用意する。初回に GAS エディタから 1 回だけ手動実行する。
+ *
+ * **列を足したあとにも、もう一度実行すること。** 既にある行は触らず、
+ * ヘッダと入力規則だけを引き直すので、データはそのまま残る。
  */
 function setupSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
+
+  // 列を足したあとに実行されることがあるので、足りなければ広げる
+  if (sh.getMaxColumns() < HEADERS.length) {
+    sh.insertColumnsAfter(sh.getMaxColumns(), HEADERS.length - sh.getMaxColumns());
+  }
 
   sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
   sh.setFrozenRows(1);
@@ -217,6 +240,8 @@ function setupSheet() {
     .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(PLACES, true).build());
   sh.getRange(2, COL.KIND, sh.getMaxRows() - 1)
     .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(KINDS, true).build());
+  sh.getRange(2, COL.CATEGORY, sh.getMaxRows() - 1)
+    .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(CATEGORIES, true).build());
 
   // 日付列は文字列（yyyy-MM-dd）で保持するため、書式ずれを避けてプレーンテキストにする
   sh.getRange(2, COL.BOUGHT, sh.getMaxRows() - 1).setNumberFormat('@');
@@ -242,7 +267,9 @@ function readAll_() {
   var last = sh.getLastRow();
   if (last < 2) return [];
 
-  var values = sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
+  // 列を足す前のシートを読むこともあるので、実際にある幅までにとどめる
+  var width = Math.min(HEADERS.length, sh.getMaxColumns());
+  var values = sh.getRange(2, 1, last - 1, width).getValues();
   return values
     .filter(function (r) { return String(r[COL.ID - 1]).trim() !== ''; })
     .map(function (r) { return decorate_(fromRow_(r)); });
@@ -257,7 +284,8 @@ function findRow_(id) {
   for (var i = 0; i < ids.length; i++) {
     if (String(ids[i][0]) === String(id)) {
       var rowIndex = i + 2;
-      var row = sh.getRange(rowIndex, 1, 1, HEADERS.length).getValues()[0];
+      var width = Math.min(HEADERS.length, sh.getMaxColumns());
+      var row = sh.getRange(rowIndex, 1, 1, width).getValues()[0];
       return { rowIndex: rowIndex, record: fromRow_(row) };
     }
   }
@@ -275,7 +303,8 @@ function fromRow_(r) {
     expiryDate: dateStr_(r[COL.EXPIRY - 1]),
     quantity:   Number(r[COL.QTY - 1]) || 0,
     consumed:   r[COL.CONSUMED - 1] === true || String(r[COL.CONSUMED - 1]).toUpperCase() === 'TRUE',
-    updatedAt:  dateTimeStr_(r[COL.UPDATED - 1])
+    updatedAt:  dateTimeStr_(r[COL.UPDATED - 1]),
+    category:   String(r[COL.CATEGORY - 1] || '')
   };
 }
 
@@ -291,6 +320,7 @@ function toRow_(f) {
   row[COL.QTY - 1]      = f.quantity;
   row[COL.CONSUMED - 1] = f.consumed === true;
   row[COL.UPDATED - 1]  = f.updatedAt || nowStr_();
+  row[COL.CATEGORY - 1] = f.category || DEFAULT_CATEGORY;
   return row;
 }
 
@@ -316,13 +346,19 @@ function normalize_(f) {
   var qty = Number(f.quantity);
   if (!isFinite(qty) || qty < 0) qty = 1;
 
+  // ジャンルは任意。知らない値や空欄は「その他」に寄せる
+  // （列を足す前に登録した食品は空欄のままなので、弾かずに受け止める）
+  var category = String(f.category || '').trim();
+  if (CATEGORIES.indexOf(category) < 0) category = DEFAULT_CATEGORY;
+
   return {
     name: name,
     place: place,
     boughtDate: normDate_(f.boughtDate) || '',
     kind: kind,
     expiryDate: expiry,
-    quantity: qty
+    quantity: qty,
+    category: category
   };
 }
 

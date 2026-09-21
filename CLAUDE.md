@@ -57,6 +57,12 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
   同時に成立する不正な比較になり、期限なしが 2 件以上あると順序が安定しない
   （フロントの `foodsIn()` と GAS の `sortByExpiry_()` の両方）。
   `sort` は安定なので、`0` を返せば期限なしどうしは登録順が保たれる
+- **`category`（ジャンル）は任意。** `CATEGORIES` のいずれか。空欄や知らない値は `その他` に寄せる
+  （フロントは `catOf()`、GAS は `normalize_`）。ジャンル列を足す前に登録した行は空欄なので、
+  **弾かずに受け止めること**
+- **シートに列を足すときは必ず末尾に足す。** 途中に挿すと既存行の値がずれる。
+  末尾なら古い行では空欄として読まれるだけで済む。読み書きは `Math.min(HEADERS.length, getMaxColumns())`
+  で実際の幅に合わせ、書き戻す前には足りない列を `insertColumnsAfter` で広げる
 - **`expiryDate` は任意。** 在庫の数だけ管理したい食品があるため必須にしない。
   空のときは `kind` も空に揃え（`normalize_`）、`daysLeft` は `null`、`status` は `unknown` になる。
   一覧では末尾に並び、色分け・タブの警告件数・`expiring` の対象から外れる
@@ -125,6 +131,19 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 - **スワイプ直後 400ms のクリックは無視する**（`lastSwipeAt`）。
   横に払ったあとに click が続けて発火し、編集モーダルが開いてしまうのを防ぐ
 
+### 並びと区切り
+
+`renderList()` が組み立てる。
+
+- **数量 0 は「買い足す」として常に最上段**（`isRestock()`）。並び替えの指定より優先する。
+  期限の色分けは付けず、専用の青（`--info`）と「切らしている」バッジにする。
+  手元に無いものは傷みようがないので、**タブの期限警告の件数にも `foodsByExpiry()` にも入れない**
+- `sortMode` は `'expiry'`（既定）か `'category'`。`fm_sort_mode` に保存する。
+  ジャンル順では `CATEGORIES` の並びで区切り、**その中は期限順のまま**にする
+  （期限順という土台を壊さないため）
+- タブのバッジは期限の警告（赤）を優先し、それが無いときだけ「買い足す」の件数（青）を出す
+- **赤 `--danger` と橙 `--warn` は期限の警告専用のまま。** 「買い足す」には別枠の `--info` を使う
+
 ### 数量の増減
 
 カード右下とモーダルの `−` `＋` で変える（数値入力欄は置かない）。
@@ -173,6 +192,7 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 - **完了**: 期限日の任意化（在庫のみの管理）、スワイプでのタブ移動、Budget Manager に揃えたタイトル
 - **完了（第 2 段階）**: 編集・消費済み・削除の UI
 - **完了**: 数量の増減（− ＋）、期限カレンダー
+- **完了**: ジャンル分け（シート 10 列目）、切らしているものを最上段に出す「買い足す」
 - **完了**: Capacitor による Android アプリ化（`capacitor-app/`）
 - **スコープ外**: ntfy によるプッシュ通知。`gas/Code.gs` の `notifyExpiringItems()` を差し込み口として用意済み
 
@@ -197,6 +217,8 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 | `APP_VERSION` | `index.html` | フロントを直したとき。push で自動更新されるので気兼ねなく |
 | `GAS_VERSION` | `gas/Code.gs` | `Code.gs` を直したとき |
 | `REQUIRED_GAS_VERSION` | `index.html` | **`Code.gs` の仕様を変えたときだけ** |
+
+現在: `APP_VERSION` 1.3.0 / `GAS_VERSION` 1.1.0 / `REQUIRED_GAS_VERSION` 1.1.0
 
 設定画面が `ping` で GAS 側の番号を取り、`GAS_VERSION < REQUIRED_GAS_VERSION` のときだけ
 再デプロイを促す警告を出す（比較は `cmpVer()`）。
