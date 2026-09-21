@@ -2,3 +2,9 @@
 Thumbs.db
 node_modules/
 .clasp.json
+
+# 署名に関わるものは絶対にコミットしない（この repo は公開されている）
+*.keystore
+*.jks
+keystore.properties
+key.properties

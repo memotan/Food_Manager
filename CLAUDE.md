@@ -92,6 +92,10 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
   使われるのは `cap add android` の瞬間だけで、以後は `android/` に残った値がランチャーの表示名に
   なり続ける。そのため `npm run sync` の最後に `scripts/apply-native-name.mjs` を走らせて上書きする。
   **アプリ名を変えたら、Android Studio でのビルドが要る**（web の中身と違い push では変わらない）
+- **デバッグ用の署名鍵は PC ごとに自動生成される**（`%USERPROFILE%\.android\debug.keystore`）。
+  別の PC でビルドした APK は署名が変わるため、上書きインストールが
+  `INSTALL_FAILED_UPDATE_INCOMPATIBLE` で拒否される。**端末から一度アンインストールして入れ直す**。
+  署名鍵やパスワードを repo に置かないこと（公開 repo。`.gitignore` で弾いてある）
 - WebView が古い `index.html` を抱えることがあるので、設定画面に「最新に更新」
   （`forceReload()`）を置いてある。クエリを付けて別 URL にして読み直す
 - **同梱方式から切り替えたので、WebView のオリジンが `https://localhost` から
