@@ -8,7 +8,8 @@
     "check": "node scripts/check-path.mjs",
     "copy": "node scripts/copy-www.mjs",
     "appname": "node scripts/apply-native-name.mjs",
-    "sync": "npm run copy && cap sync && npm run appname",
+    "appicon": "node scripts/apply-native-icon.mjs",
+    "sync": "npm run copy && cap sync && npm run appname && npm run appicon",
     "open": "cap open android",
     "build": "npm run sync && cap open android"
   },

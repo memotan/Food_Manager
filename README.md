@@ -18,7 +18,8 @@ GitHub Pages で配信し、Google Apps Script (GAS) 経由で Google スプレ�
 | ファイル | 役割 |
 |---|---|
 | `index.html` | GitHub Pages が配信するエントリポイント。アプリ本体 |
-| `manifest.json` | PWA マニフェスト（standalone / portrait、SVG data-URI アイコン） |
+| `manifest.json` | PWA マニフェスト（standalone / portrait、`icons/` を参照） |
+| `icons/` | アプリアイコン（ドットのバナナの房）。SVG と、そこから書き出した PNG |
 | `gas/Code.gs` | GAS バックエンド。スプレッドシートの CRUD と期限判定 |
 | `gas/appsscript.json` | GAS のプロジェクト設定（タイムゾーン Asia/Tokyo、ウェブアプリ公開設定） |
 | `.github/workflows/pages.yml` | GitHub Pages へのデプロイ（Source が「GitHub Actions」のとき使われる） |
@@ -287,18 +288,19 @@ cd capacitor-app
 npm run sync
 ```
 
-`npm run sync` は次の 3 つを続けて行う。
+`npm run sync` は次の 4 つを続けて行う。
 
-1. ルートの `index.html` / `manifest.json` を `www/` にコピー
+1. ルートの `index.html` / `manifest.json` / `icons/` を `www/` にコピー
 2. `cap sync`（プラグインとネイティブ側の同期）
 3. `capacitor.config.json` の `appName` / `appId` を Android のリソースへ反映
+4. `icons/android/` のアイコンを Android のリソースへ反映
 
-> **3 が要るのは、`cap sync` が `strings.xml` を書き換えないため。**
-> `appName` が使われるのは `cap add android` でプロジェクトを作る瞬間だけで、
-> 以後は `android/` に残った値がランチャーの表示名になり続ける。
-> 設定を直しても名前が変わらない、という取り違えを防ぐためにここで上書きしている。
+> **3 と 4 が要るのは、`cap sync` が `strings.xml` もアイコンも書き換えないため。**
+> これらが使われるのは `cap add android` でプロジェクトを作る瞬間だけで、
+> 以後は `android/` に残った値がランチャーの表示名とアイコンになり続ける。
+> 設定を直しても変わらない、という取り違えを防ぐためにここで上書きしている。
 >
-> **アプリ名はネイティブのリソースなので、反映には Android Studio でのビルドが必要。**
+> **アプリ名もアイコンもネイティブのリソースなので、反映には Android Studio でのビルドが必要。**
 > web の中身と違って、push だけでは変わらない。
 
 > **`capacitor-app/www/` は生成物なので git で管理していない。** 手で編集しても
@@ -338,6 +340,37 @@ APK を作り直す必要があるのは、`capacitor.config.json` やプラグ�
 - **アプリ復帰時**: 残日数を計算し直す。最後の同期から 60 秒以上空いていればシートも取り直す
 
 ビルド工程がないため、プラグインは `import` ではなく `Capacitor.Plugins.App` のように参照している。
+
+### アイコンを変えるとき
+
+図柄は `icons/gen-icon.mjs` が生成している。SVG を手で直さず、ファイル冒頭の
+`CONFIG`（傾き・房の本数・開き・格子の細かさなど）を変えて作り直す。
+
+```bash
+node icons/gen-icon.mjs
+```
+
+これで `icons/icon.svg` / `icon-foreground.svg` / `icon-background.svg` が書き換わる。
+図柄が Android の安全領域（192 の図面の 32〜160）をはみ出すと、異常終了して教えてくれる。
+
+PNG はこの repo に画像ライブラリを入れない方針のため、書き出し済みのものをコミットしてある。
+SVG を変えたら PNG も作り直すこと。ブラウザがあれば次のどちらでもよい。
+
+- `icons/icon.svg` などをブラウザで開き、必要なサイズでスクリーンショットを撮って差し替える
+- Android Studio の **File → New → Image Asset** に `icons/icon-foreground.svg` を
+  前景として読ませ、背景色に `#2e7d32` を指定して書き出す
+
+必要なサイズは次のとおり。
+
+| ファイル | サイズ |
+|---|---|
+| `icons/icon-192.png` / `icon-512.png` | 192 / 512（角は丸めない。OS 側が丸める） |
+| `icons/apple-touch-icon.png` | 180（同上） |
+| `icons/android/mipmap-{m,h,x,xx,xxx}hdpi/ic_launcher.png` | 48 / 72 / 96 / 144 / 192（角丸・背景透過） |
+| 同 `ic_launcher_round.png` | 同上（円・背景透過） |
+| 同 `ic_launcher_foreground.png` | 108 / 162 / 216 / 324 / 432（図柄のみ・背景透過） |
+
+アイコンの反映には **Android Studio でのビルドが必要**。push では変わらない。
 
 ### 別の PC でビルドするとインストールできない
 

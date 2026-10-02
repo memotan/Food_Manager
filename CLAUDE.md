@@ -18,7 +18,8 @@ Google スプレッドシートに読み書きする。
 | ファイル | 役割 |
 |---|---|
 | `index.html` | GitHub Pages が配信するエントリポイント。アプリ本体（CSS + HTML + JS） |
-| `manifest.json` | PWA マニフェスト（standalone / portrait、SVG data-URI アイコン、theme #111） |
+| `manifest.json` | PWA マニフェスト（standalone / portrait、`icons/` を参照、theme #111） |
+| `icons/` | アプリアイコン。`gen-icon.mjs` が SVG を生成し、`android/` 以下に Android 用の PNG を置く |
 | `gas/Code.gs` | GAS バックエンド。**編集したら GAS エディタに貼り直し、再デプロイが必要**（repo に置いてあるのは正本のコピー管理のため） |
 | `gas/appsscript.json` | GAS のプロジェクト設定（Asia/Tokyo、ウェブアプリ公開設定） |
 | `.github/workflows/pages.yml` | GitHub Pages へのデプロイ用ワークフロー（ビルドはせず静的ファイルをそのまま配信） |
@@ -129,6 +130,35 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
   固定サイズにすると幅の狭い端末で右上のアイコンを押し出す（320px まで確認済み）
 - 日付（`.fdate`）は `var(--mono)` で桁を揃える
 
+## アプリアイコン
+
+ドットで描いたバナナの房。`icons/gen-icon.mjs` が生成する（`node icons/gen-icon.mjs`）。
+図柄を変えるときは **SVG を手で直さず、`CONFIG` を変えて作り直す**。
+
+- **明暗は「縦1列ごとに上から順位で帯」に割り当てる。** 法線や奥行きから1粒ずつ決めると、
+  格子に落とした時点で量子化の端が暴れ、色違いの粒が散って小さいサイズで濁る
+- **手前と奥の房は、暗い影ではなく「背景色の隙間1マス」で切り分ける。**
+  小さいサイズでは、暗い色で区切るより地の色を覗かせる方が形が残る
+- **図柄は 192 の図面の 32〜160 に収める。** Android のアダプティブアイコンは外周が削られる。
+  `gen-icon.mjs` はこれをはみ出したら異常終了する
+- **地は緑。** 黒地（`--bg`）だと陰の粒が沈んで、36px ではただのにじみになる
+
+出力は3つ。Android が前景と背景を別レイヤーで要求するため。
+
+| ファイル | 用途 |
+|---|---|
+| `icons/icon.svg` | 地＋図柄。PWA と favicon |
+| `icons/icon-foreground.svg` | 図柄のみ・地は透明。Android の前景レイヤー |
+| `icons/icon-background.svg` | 地のみ。Android の背景レイヤー |
+
+PNG（`icons/icon-192.png` / `icon-512.png` / `apple-touch-icon.png` / `icons/android/**`）は
+SVG から書き出したもの。**この repo に画像ライブラリは入れない方針**なので、
+PNG は書き出し済みのものをコミットしてある。図柄を変えたら PNG も作り直すこと（手順は README）。
+
+Android へは `npm run sync` の最後の `scripts/apply-native-icon.mjs` が反映する。
+`cap sync` はアイコンを差し替えないので、アプリ名と同じ事情でここが要る。
+**反映には Android Studio でのビルドが必要**（web と違い push では変わらない）。
+
 ## 操作
 
 ### 一覧のタップ
@@ -205,6 +235,7 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 - **完了**: 数量の増減（− ＋）、期限カレンダー
 - **完了**: ジャンル分け（シート 10 列目）、切らしているものを最上段に出す「買い足す」
 - **完了**: Capacitor による Android アプリ化（`capacitor-app/`）
+- **完了**: アプリアイコン（ドットのバナナの房。`icons/`）
 - **スコープ外**: ntfy によるプッシュ通知。`gas/Code.gs` の `notifyExpiringItems()` を差し込み口として用意済み
 
 ## 開発上の注意
@@ -229,7 +260,7 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
 | `GAS_VERSION` | `gas/Code.gs` | `Code.gs` を直したとき |
 | `REQUIRED_GAS_VERSION` | `index.html` | **`Code.gs` の仕様を変えたときだけ** |
 
-現在: `APP_VERSION` 1.4.0 / `GAS_VERSION` 1.2.0 / `REQUIRED_GAS_VERSION` 1.2.0
+現在: `APP_VERSION` 1.5.0 / `GAS_VERSION` 1.2.0 / `REQUIRED_GAS_VERSION` 1.2.0
 
 設定画面が `ping` で GAS 側の番号を取り、`GAS_VERSION < REQUIRED_GAS_VERSION` のときだけ
 再デプロイを促す警告を出す（比較は `cmpVer()`）。
