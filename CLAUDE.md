@@ -260,7 +260,7 @@ Android へは `npm run sync` の最後の `scripts/apply-native-icon.mjs` が�
 | `GAS_VERSION` | `gas/Code.gs` | `Code.gs` を直したとき |
 | `REQUIRED_GAS_VERSION` | `index.html` | **`Code.gs` の仕様を変えたときだけ** |
 
-現在: `APP_VERSION` 1.5.0 / `GAS_VERSION` 1.2.0 / `REQUIRED_GAS_VERSION` 1.2.0
+現在: `APP_VERSION` 1.5.1 / `GAS_VERSION` 1.2.0 / `REQUIRED_GAS_VERSION` 1.2.0
 
 設定画面が `ping` で GAS 側の番号を取り、`GAS_VERSION < REQUIRED_GAS_VERSION` のときだけ
 再デプロイを促す警告を出す（比較は `cmpVer()`）。
