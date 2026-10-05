@@ -89,7 +89,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 /* 一覧のカードでは一回り小さくし、バッジの下に置く */
 .fright{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
 .food-card .qty-btn{width:26px;height:26px;border-radius:8px;font-size:15px}
-.food-card .qty-val{min-width:22px;font-size:13px;color:var(--text3)}
+.food-card .qty-val{min-width:24px;font-size:15px;font-weight:600;color:var(--text)}
+.food-card.restock .qty-val{color:var(--info-fg)}
 .fmeta{font-size:12px;color:var(--text3);margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
 .fdate{font-family:var(--mono)}
 .fkind{color:var(--text2)}
@@ -387,7 +388,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 // ========== 定数 ==========
 // アプリ（この index.html）のバージョン。GitHub Pages への push で自動更新されるので、
 // 直したら気兼ねなく上げてよい
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.5.2';
 
 // このアプリが動くのに必要な gas/Code.gs の最低バージョン。
 // GAS は手で貼り直して再デプロイする必要があるため、これを下回っていたら設定画面が警告を出す。
