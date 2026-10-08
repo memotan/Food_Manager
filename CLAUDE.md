@@ -130,7 +130,7 @@ BM（`memotan/kakeibo`）の食費を、保管場所の決まっていない候�
   BM のシートを読む**（`readBmFoodTransactions_`。同じアカウントなので BM の公開設定はそのまま）
 - BM のスプレッドシート ID は **スクリプト プロパティ `BM_SPREADSHEET_ID`** に置く。`Code.gs` に直書きしない（公開 repo）。
   `BM_FOOD_CATEGORIES`（既定 `食費`）、`BM_INBOX_DAYS`（既定 14）も同様。
-  `openById` には権限承認が要るので、GAS エディタで `checkInbox` を 1 回手動実行する
+  接続の確認は GAS エディタで `checkInbox` を 1 回手動実行し、**実行ログ**を見る（エディタは return の値を出さない）
 - BM の `Transactions` の列は **見出し名で引く**（`id` `date` `type` `category` `amount` `place` `memo`）。
   BM の `place` は店名であって、こちらの `place`（保管場所）とは別物。候補では `store` と呼んで混ぜない。
   `date` は `2026-10-03T09:00` 形式の文字列、またはシートが Date に直したもの（`dateStr_` が両方受ける）
@@ -291,7 +291,7 @@ Android へは `npm run sync` の最後の `scripts/apply-native-icon.mjs` が�
 | `GAS_VERSION` | `gas/Code.gs` | `Code.gs` を直したとき |
 | `REQUIRED_GAS_VERSION` | `index.html` | **`Code.gs` の仕様を変えたときだけ** |
 
-現在: `APP_VERSION` 1.6.0 / `GAS_VERSION` 1.3.0 / `REQUIRED_GAS_VERSION` 1.3.0
+現在: `APP_VERSION` 1.6.0 / `GAS_VERSION` 1.3.1 / `REQUIRED_GAS_VERSION` 1.3.0
 
 設定画面が `ping` で GAS 側の番号を取り、`GAS_VERSION < REQUIRED_GAS_VERSION` のときだけ
 再デプロイを促す警告を出す（比較は `cmpVer()`）。

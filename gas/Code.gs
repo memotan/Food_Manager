@@ -15,7 +15,7 @@
  * ping で返しており、揃っていないとアプリの設定画面が警告を出す。
  * Code.gs を直したら、ここを上げたうえで GAS エディタに貼り直し、再デプロイすること。
  */
-var GAS_VERSION = '1.3.0';
+var GAS_VERSION = '1.3.1';
 
 var SHEET_NAME = '食品';
 
@@ -384,13 +384,16 @@ function findHistoryRow_(sh, key) {
 
 /**
  * 取り込みの確認用。GAS エディタから 1 回手動で実行する。
- * BM のスプレッドシートへのアクセス許可を求められるので、承認すること
- * （承認しないと、デプロイしたウェブアプリからは BM のシートを開けない）。
+ * 結果は実行ログに出す（エディタは return の値を表示しない）。
+ * 「候補 N 件」と出れば、BM のスプレッドシートを読めている。
  */
 function checkInbox() {
   var r = listInbox();
-  if (!r.configured) return 'BM_SPREADSHEET_ID が未設定です（プロジェクトの設定 → スクリプト プロパティ）';
-  return '候補 ' + r.items.length + ' 件';
+  var msg = r.configured
+    ? '候補 ' + r.items.length + ' 件'
+    : 'BM_SPREADSHEET_ID が未設定です（プロジェクトの設定 → スクリプト プロパティ）';
+  Logger.log(msg);
+  return msg;
 }
 
 
