@@ -92,7 +92,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 /* 一覧のカードでは一回り小さくし、バッジの下に置く */
 .fright{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
 .food-card .qty-btn{width:26px;height:26px;border-radius:8px;font-size:15px}
-.food-card .qty-val{min-width:22px;font-size:13px;color:var(--text3)}
+.food-card .qty-val{min-width:24px;font-size:15px;font-weight:600;color:var(--text)}
+.food-card.restock .qty-val{color:var(--info-fg)}
 .fmeta{font-size:12px;color:var(--text3);margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
 .fdate{font-family:var(--mono)}
 .fkind{color:var(--text2)}
@@ -205,6 +206,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .sheet-close{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:4px;line-height:1}
 .sheet-body{padding:0 20px calc(20px + var(--safe-bottom));overflow-y:auto}
 .sheet-label{font-size:12px;color:var(--text3);margin-bottom:7px;display:block}
+.label-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;min-height:26px}
+.label-row .sheet-label{margin-bottom:0}
+.label-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px 10px;font-size:12px;color:var(--text2);cursor:pointer;font-family:inherit}
+.label-btn:active{border-color:var(--accent);color:var(--text)}
 .sheet-inp{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:16px;font-family:inherit;outline:none;margin-bottom:14px;transition:border-color .15s}
 .sheet-inp:focus{border-color:var(--text4)}
 .sheet-inp::placeholder{color:var(--text4)}
@@ -355,11 +360,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 
     <div class="row2">
       <div>
-        <label class="sheet-label" for="inpExpiry">期限日（任意）</label>
+        <div class="label-row">
+          <label class="sheet-label" for="inpExpiry">期限日（任意）</label>
+        </div>
         <input class="sheet-inp" id="inpExpiry" type="date" oninput="updateKindState()">
       </div>
       <div>
-        <label class="sheet-label" for="inpBought">購入日</label>
+        <div class="label-row">
+          <label class="sheet-label" for="inpBought">購入日</label>
+          <button type="button" class="label-btn" onclick="setBoughtToday()">今日</button>
+        </div>
         <input class="sheet-inp" id="inpBought" type="date">
       </div>
     </div>
@@ -1146,6 +1156,12 @@ function renderSegs() {
 }
 
 /** モーダルの数量を書き換える。0 未満にはしない */
+// 購入日を今日にする。新規追加では開いた時点で今日が入っているので、
+// 編集中や、日付をいじったあとに戻したいときのためのボタン
+function setBoughtToday() {
+  document.getElementById('inpBought').value = todayStr();
+}
+
 function setSheetQty(n) {
   sheetQty = Math.max(0, isFinite(n) ? Math.round(n) : 1);
   document.getElementById('sheetQty').textContent = String(sheetQty);
