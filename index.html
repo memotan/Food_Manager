@@ -47,11 +47,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .tabs{display:flex;gap:4px;flex:1;min-width:0}
 .sortbtn{flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:16px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all .15s}
 .sortbtn:active{background:var(--surface2)}
+/* タブが 4 つになったので、狭い端末では並べ替えボタンを文字なしにして収める（320px まで確認） */
+@media (max-width:359px){#sortLabel{display:none}}
 .sortbtn.on{border-color:var(--accent);color:var(--text2)}
-.tab{position:relative;padding:6px 16px;border-radius:20px;font-size:14px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:inherit;transition:all .15s}
+.tab{position:relative;padding:6px 14px;white-space:nowrap;border-radius:20px;font-size:14px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:inherit;transition:all .15s}
 .tab.active{background:var(--text);color:var(--bg);font-weight:500}
 .tab .tbadge{position:absolute;top:-2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--danger);color:#fff;font-size:10px;line-height:16px;font-weight:600}
 .tab .tbadge.restock{background:var(--info)}
+.tab .tbadge.inbox{background:var(--accent)}
 
 .scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .food-list{padding:0 16px 8px;display:flex;flex-direction:column;gap:8px}
@@ -109,6 +112,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 /* 在庫を切らしているもの。期限の色とは別の見た目にする */
 .food-card.restock{border-left-color:var(--info);border-left-style:dashed}
 .badge.restock{background:var(--info-bg);color:var(--info-fg)}
+/* 取込待ち。赤・橙は期限の警告専用、青は「買い足す」専用なので、アクセントの緑で区別する */
+.food-card.inbox{border-left-color:var(--accent);border-left-style:dashed}
+.badge.inbox{background:var(--surface2);color:var(--text2)}
+.skipbtn{width:26px;height:26px;border-radius:50%;border:2px solid var(--text4);background:transparent;color:var(--text4);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;font-size:13px;transition:all .15s}
+.skipbtn:active{background:var(--surface2);color:var(--text2);border-color:var(--text3)}
+.sheet-ctx{font-size:12px;color:var(--text3);margin:-4px 0 12px;line-height:1.6}
 .empty-state{text-align:center;color:var(--text4);font-size:14px;padding:56px 16px;line-height:1.8}
 
 .bottom-bar{flex-shrink:0;padding:10px 16px calc(10px + var(--safe-bottom));border-top:1px solid var(--border);background:var(--bg)}
@@ -331,6 +340,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <button class="sheet-close" onclick="closeSheet()" aria-label="閉じる"><i class="ti ti-x" aria-hidden="true"></i></button>
   </div>
   <div class="sheet-body">
+    <div class="sheet-ctx" id="sheetCtx" hidden></div>
     <label class="sheet-label" for="inpName">商品名</label>
     <input class="sheet-inp" id="inpName" placeholder="例：牛乳" maxlength="60">
 
@@ -378,15 +388,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 // ========== 定数 ==========
 // アプリ（この index.html）のバージョン。GitHub Pages への push で自動更新されるので、
 // 直したら気兼ねなく上げてよい
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 
 // このアプリが動くのに必要な gas/Code.gs の最低バージョン。
 // GAS は手で貼り直して再デプロイする必要があるため、これを下回っていたら設定画面が警告を出す。
 // **Code.gs の仕様を変えたときだけ**ここを上げること。フロントだけ直したときに上げると、
 // 中身の変わっていない GAS の貼り直しを強いることになる
-const REQUIRED_GAS_VERSION = '1.2.0';
+const REQUIRED_GAS_VERSION = '1.3.0';
 
 const PLACES = ['冷蔵', '冷凍', '常温'];
+// Budget Manager から取り込んだ、まだ保管場所の決まっていない品目の置き場。
+// 保管場所ではないので PLACES には入れず、タブの並びだけに加える
+const INBOX = '取込';
+const TABS = PLACES.concat(INBOX);
 const KINDS  = ['賞味期限', '消費期限'];
 
 // ジャンル。gas/Code.gs の CATEGORIES と同じ並びにすること
@@ -400,6 +414,10 @@ const DEFAULT_WARN_DAYS = 3;
 
 // ========== 状態 ==========
 let foods = [];            // サーバから取得した食品の配列
+let inbox = [];            // 取込待ちの品目。BM の食費を品目に分けたもの
+let inboxState = '';       // '' 未取得 | 'ok' | 'unconfigured'（BM の ID 未設定）| 'error'
+let inboxErr = '';
+let sheetInbox = null;     // 取込待ちから開いているときの、その品目。通常の追加・編集なら null
 let gasUrl = '';
 let warnDays = DEFAULT_WARN_DAYS;
 let currentPlace = PLACES[0];
@@ -680,7 +698,26 @@ async function syncFromSheet() {
     setSyncState('err', 'エラー: ' + e.message);
     showToast('同期失敗: ' + e.message);
     renderAll();
+    return;
   }
+  // 取込待ちは別のスプレッドシートを開くぶん遅いので、食品の一覧を出したあとに取りに行く。
+  // 失敗しても食品の一覧は使えるようにしておく
+  syncInbox();
+}
+
+/** 取込待ちを取り直す。失敗は同期ドットではなく、取込タブの中で知らせる */
+async function syncInbox() {
+  if (!gasUrl) { inbox = []; inboxState = ''; inboxErr = ''; return; }
+  try {
+    const r = await gasCall({ action: 'inbox' });
+    inbox = r.items || [];
+    inboxState = r.configured ? 'ok' : 'unconfigured';
+    inboxErr = '';
+  } catch (e) {
+    inboxState = 'error';
+    inboxErr = e.message;
+  }
+  renderAll();
 }
 
 // ========== 期限の判定 ==========
@@ -756,7 +793,15 @@ function renderSortBtn() {
 }
 
 function renderTabs() {
-  document.getElementById('tabs').innerHTML = PLACES.map(p => {
+  // 取込タブでは並べ替えが効かないので隠す（幅は保って、タブが動かないようにする）
+  document.getElementById('sortBtn').style.visibility = currentPlace === INBOX ? 'hidden' : '';
+
+  document.getElementById('tabs').innerHTML = TABS.map(p => {
+    if (p === INBOX) {
+      const n = inbox.length;
+      const badge = n ? `<span class="tbadge inbox">${n}</span>` : '';
+      return `<button class="tab${p === currentPlace ? ' active' : ''}" onclick="switchPlace('${p}')" title="Budget Manager から取り込む">${escHtml(p)}${badge}</button>`;
+    }
     const items = foodsIn(p);
     // 手元に無いもの（数量0）は期限の警告に数えない。切らしている以上、傷みようがない
     const alerts = items.filter(f => !isRestock(f))
@@ -771,8 +816,8 @@ function renderTabs() {
 }
 
 function switchPlace(place) {
-  const from = PLACES.indexOf(currentPlace);
-  const to = PLACES.indexOf(place);
+  const from = TABS.indexOf(currentPlace);
+  const to = TABS.indexOf(place);
   if (to < 0 || to === from) return;
 
   currentPlace = place;
@@ -812,10 +857,10 @@ function setupSwipe() {
     if (Math.abs(dx) < SWIPE_MIN_X) return;
     if (Math.abs(dx) < Math.abs(dy) * 1.5) return;   // 縦方向が優勢ならスクロール操作
 
-    const i = PLACES.indexOf(currentPlace);
+    const i = TABS.indexOf(currentPlace);
     const next = i + (dx < 0 ? 1 : -1);              // 左へ払う = 次のタブ
     lastSwipeAt = Date.now();
-    if (next >= 0 && next < PLACES.length) switchPlace(PLACES[next]);
+    if (next >= 0 && next < TABS.length) switchPlace(TABS[next]);
   }, { passive: true });
 }
 
@@ -844,6 +889,8 @@ function sectionHtml(label, count, cls) {
 }
 
 function renderList() {
+  if (currentPlace === INBOX) { renderInbox(); return; }
+
   const list = foodsIn(currentPlace);
   const el = document.getElementById('foodList');
 
@@ -878,6 +925,57 @@ function renderList() {
   }
 
   el.innerHTML = parts.join('');
+}
+
+/** 取込タブ。買い物（BM の 1 件）ごとに見出しを置き、品目をカードで並べる */
+function renderInbox() {
+  const el = document.getElementById('foodList');
+
+  if (!inbox.length) {
+    let msg;
+    if (!gasUrl) msg = 'まず設定からGASのウェブアプリURLを<br>登録してください。';
+    else if (inboxState === 'unconfigured') {
+      msg = 'Budget Manager のスプレッドシートが<br>まだ結び付いていません。<br>'
+        + 'GAS のスクリプト プロパティ BM_SPREADSHEET_ID に<br>スプレッドシートの ID を入れてください。';
+    } else if (inboxState === 'error') {
+      msg = '取り込み待ちを読み込めませんでした。<br>' + escHtml(inboxErr) + '<br>'
+        + 'GAS が古い場合は、設定画面の案内に沿って<br>貼り直してください。';
+    } else if (inboxState === '') msg = '食品の同期が終わると表示されます。';
+    else msg = '取り込み待ちはありません。<br>Budget Manager に食費を記録すると、<br>メモの品目がここに並びます。';
+    el.innerHTML = `<div class="empty-state">${msg}</div>`;
+    return;
+  }
+
+  // サーバは新しい買い物から順に返す。同じ買い物の品目は続けて並ぶので、前の行と比べて区切る
+  const parts = [];
+  let i = 0;
+  while (i < inbox.length) {
+    const head = inbox[i];
+    let j = i;
+    while (j < inbox.length && inbox[j].txId === head.txId) j++;
+    const group = inbox.slice(i, j);
+
+    const label = [shortDate(head.date), head.store, head.amount ? '¥' + Number(head.amount).toLocaleString('ja-JP') : '']
+      .filter(Boolean).join(' ');
+    parts.push(sectionHtml(label || '買い物', group.length));
+    parts.push(...group.map(inboxCardHtml));
+    i = j;
+  }
+  el.innerHTML = parts.join('');
+}
+
+function inboxCardHtml(it) {
+  // 品目に分けられなかった（メモが空の）買い物は、名前が無い。登録時に入れてもらう
+  const name = it.name || '（品名を入力）';
+  return `
+    <div class="food-card inbox" data-key="${escHtml(it.key)}">
+      <button class="skipbtn" aria-label="無視する"><i class="ti ti-x" aria-hidden="true"></i></button>
+      <div class="fbody">
+        <div class="fname">${escHtml(name)}</div>
+        <div class="fmeta"><span>購入 <span class="fdate">${escHtml(shortDate(it.date))}</span></span></div>
+      </div>
+      <div class="fright"><span class="badge inbox">登録する</span></div>
+    </div>`;
 }
 
 function cardHtml(f) {
@@ -930,6 +1028,11 @@ function setupListTaps() {
     if (Date.now() - lastSwipeAt < 400) return;
 
     const card = e.target.closest('.food-card');
+    if (card && card.dataset.key) {   // 取込待ちのカード
+      if (e.target.closest('.skipbtn')) skipInbox(card.dataset.key);
+      else openInboxSheet(card.dataset.key);
+      return;
+    }
     if (!card || !card.dataset.id) return;
 
     const qbtn = e.target.closest('.qty-btn');
@@ -982,12 +1085,15 @@ function showToast(msg, actionLabel, onAction) {
 function openSheet(id) {
   const food = id ? foods.find(f => String(f.id) === String(id)) : null;
   sheetFoodId = food ? food.id : null;
+  sheetInbox = null;
 
-  sheetPlace = food ? food.place : currentPlace;
+  // 取込タブは保管場所ではないので、そこから開いた追加では先頭の保管場所を選んでおく
+  sheetPlace = food ? food.place : (PLACES.indexOf(currentPlace) >= 0 ? currentPlace : PLACES[0]);
   sheetKind = (food && food.kind) ? food.kind : KINDS[0];
   sheetCat = food ? catOf(food) : DEFAULT_CATEGORY;
 
   document.getElementById('sheetTitle').textContent = food ? '食品を編集' : '食品を追加';
+  document.getElementById('sheetCtx').hidden = true;
   document.getElementById('inpName').value = food ? food.name : '';
   document.getElementById('inpExpiry').value = food ? (food.expiryDate || '') : '';
   document.getElementById('inpBought').value = food ? (food.boughtDate || '') : todayStr();
@@ -1003,10 +1109,31 @@ function openSheet(id) {
   setTimeout(() => document.getElementById('inpName').focus(), 300);
 }
 
+/**
+ * 取込待ちの品目を登録するために、モーダルを開く。
+ * 品名と購入日は入っているので、保管場所・ジャンル・期限・数量を埋めてもらう。
+ */
+function openInboxSheet(key) {
+  const it = inbox.find(x => x.key === key);
+  if (!it) return;
+  openSheet();
+  sheetInbox = it;
+
+  const ctx = [shortDate(it.date), it.store, it.amount ? '¥' + Number(it.amount).toLocaleString('ja-JP') : '']
+    .filter(Boolean).join(' ');
+  document.getElementById('sheetTitle').textContent = '取り込んで登録';
+  const ctxEl = document.getElementById('sheetCtx');
+  ctxEl.textContent = ctx ? ctx + ' の買い物より' : '';
+  ctxEl.hidden = !ctx;
+  document.getElementById('inpName').value = it.name;
+  document.getElementById('inpBought').value = it.date || todayStr();
+}
+
 function closeSheet() {
   document.getElementById('sheetBackdrop').classList.remove('open');
   document.getElementById('editSheet').classList.remove('open');
   sheetFoodId = null;
+  sheetInbox = null;
 }
 
 function renderSegs() {
@@ -1058,8 +1185,10 @@ async function saveSheet() {
   if (!gasUrl) { err.textContent = '先に設定からGAS URLを登録してください'; return; }
 
   const id = sheetFoodId;
+  const fromInbox = sheetInbox;
   closeSheet();
   if (id) await applyUpdate(id, food);
+  else if (fromInbox) await applyCreateFromInbox(food, fromInbox);
   else await applyCreate(food);
 }
 
@@ -1083,6 +1212,61 @@ async function applyCreate(food) {
     showToast('保存失敗: ' + e.message);
   }
   renderAll();
+}
+
+/**
+ * 取込待ちの品目を食品として登録する。
+ * 候補は先に取り除き、失敗したら戻す。取り込み済みの記録は GAS が create の中で付ける。
+ * 取込タブにとどまるのは、続けて次の品目を登録できるようにするため。
+ */
+async function applyCreateFromInbox(food, item) {
+  const before = inbox;
+  inbox = inbox.filter(x => x.key !== item.key);
+  const tmp = Object.assign({ id: 'tmp_' + Date.now(), consumed: false, pending: true }, food);
+  foods.push(tmp);
+  renderAll();
+  setSyncState('busy', '保存中...');
+
+  try {
+    const created = await gasCall({ action: 'create', food: Object.assign({ inboxKey: item.key }, food) });
+    const i = foods.findIndex(f => f.id === tmp.id);
+    if (i >= 0) foods[i] = created;
+    setSyncState('ok', '保存しました ' + nowHm());
+    showToast(food.place + 'に追加しました');
+  } catch (e) {
+    foods = foods.filter(f => f.id !== tmp.id);
+    inbox = before;
+    setSyncState('err', '保存失敗: ' + e.message);
+    showToast('保存失敗: ' + e.message);
+  }
+  renderAll();
+}
+
+/** 取込待ちの品目を無視する（外食や、在庫にしないものなど）。取り消せる */
+async function skipInbox(key) {
+  const item = inbox.find(x => x.key === key);
+  if (!item) return;
+
+  const before = inbox;
+  inbox = inbox.filter(x => x.key !== key);
+  renderAll();
+  try {
+    await gasCall({ action: 'inboxMark', key: key, status: 'skipped' });
+    showToast('無視しました', '元に戻す', () => unskipInbox(key));
+  } catch (e) {
+    inbox = before;
+    renderAll();
+    showToast('失敗: ' + e.message);
+  }
+}
+
+async function unskipInbox(key) {
+  try {
+    await gasCall({ action: 'inboxMark', key: key, status: '' });
+    await syncInbox();   // 元の位置に戻すため、並びはサーバに任せる
+  } catch (e) {
+    showToast('元に戻せませんでした: ' + e.message);
+  }
 }
 
 /** 既存の食品を更新する。失敗したら元の値に戻す */
