@@ -45,7 +45,7 @@ NeoNoting のような `index2.html`, `index7.html` といった世代スナッ�
 **`fetch` に `Content-Type` ヘッダを付けないこと。** 付けると CORS のプリフライトが飛び、GAS が
 それに応答できずに失敗する（NeoNoting と同じ理由）。
 
-action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping`。詳細は README を参照。
+action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping` / `inbox` / `inboxMark`。詳細は README を参照。
 
 データ形状（GAS が返すもの）:
 
@@ -118,6 +118,36 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
   同じファイルがブラウザでもそのまま動く。この前提を壊さないこと
 - 現状の連携: Android の戻るボタン（モーダル → 設定画面 → 終了）と、
   アプリ復帰時の再描画・再同期（`handleResume()`）
+
+## Budget Manager からの取り込み（取込タブ）
+
+BM（`memotan/kakeibo`）の食費を、保管場所の決まっていない候補として「取込」タブに並べる。
+**BM 側は変更しない。読むだけ。**
+
+- **ブラウザから BM の GAS を直接読まないこと。** BM の GAS は「自分のみ」公開なので、
+  GitHub Pages のオリジンからの fetch は Google のログインに飛ばされて失敗する。
+  公開設定を緩めると家計簿の全履歴が読めてしまう。**この repo の GAS が `SpreadsheetApp.openById` で
+  BM のシートを読む**（`readBmFoodTransactions_`。同じアカウントなので BM の公開設定はそのまま）
+- BM のスプレッドシート ID は **スクリプト プロパティ `BM_SPREADSHEET_ID`** に置く。`Code.gs` に直書きしない（公開 repo）。
+  `BM_FOOD_CATEGORIES`（既定 `食費`）、`BM_INBOX_DAYS`（既定 14）も同様。
+  `openById` には権限承認が要るので、GAS エディタで `checkInbox` を 1 回手動実行する
+- BM の `Transactions` の列は **見出し名で引く**（`id` `date` `type` `category` `amount` `place` `memo`）。
+  BM の `place` は店名であって、こちらの `place`（保管場所）とは別物。候補では `store` と呼んで混ぜない。
+  `date` は `2026-10-03T09:00` 形式の文字列、またはシートが Date に直したもの（`dateStr_` が両方受ける）
+- **候補の単位は品目。** BM は 1 回の買い物が 1 件で、品目はメモに「、」区切り（`splitMemo_`）。
+  キーは `BM の ID#品名`（同名の 2 つ目以降は `#2`）。位置でなく名前で持つのは、メモの並び替えや
+  追記で他の品目が候補に戻らないようにするため。空メモは名前なしの 1 品目
+- 取り込み済み・無視は **シート「取込履歴」**（初回に自動作成）に記録する。
+  登録と記録は **`create` に `inboxKey` を添えて 1 回の呼び出しで行う**（別呼び出しにすると、
+  登録だけ通って候補が残り、二重登録につながる）。無視は `inboxMark`、取り消しは `status:''`
+- 初回に過去の全記録が候補に溢れないよう、**日付で区切る**（`BM_INBOX_DAYS`）。外すと 860 件級が出る
+- 取込待ちの取得は食品の一覧より後に、別に行う（`syncInbox`。別のスプレッドシートを開くぶん遅い）。
+  失敗しても食品の一覧は使えるようにし、エラーは取込タブの中で出す
+- **`PLACES` に取込を入れないこと。** 保管場所ではない（`create` が弾く）。タブの並びだけ `TABS`。
+  タブの移動・スワイプは `TABS`、保管場所の判定は `PLACES`
+- 取込タブの一覧タップは `data-key` で見分ける（食品のカードは `data-id`）。登録後は取込タブにとどまる
+- 取込のバッジはアクセントの緑（`.tbadge.inbox`）。赤・橙は期限の警告専用、青は「買い足す」専用
+- タブが 4 つになったので、320px では並べ替えボタンの文字を省く（`@media (max-width:359px)`）
 
 ## 見た目の約束
 
@@ -234,6 +264,7 @@ Android へは `npm run sync` の最後の `scripts/apply-native-icon.mjs` が�
 - **完了（第 2 段階）**: 編集・消費済み・削除の UI
 - **完了**: 数量の増減（− ＋）、期限カレンダー
 - **完了**: ジャンル分け（シート 10 列目）、切らしているものを最上段に出す「買い足す」
+- **完了**: BM の食費を取り込む「取込」タブ（品目ごとの候補 → 保管場所・期限を入れて登録）
 - **完了**: Capacitor による Android アプリ化（`capacitor-app/`）
 - **完了**: アプリアイコン（ドットのバナナの房。`icons/`）
 - **スコープ外**: ntfy によるプッシュ通知。`gas/Code.gs` の `notifyExpiringItems()` を差し込み口として用意済み
@@ -260,7 +291,7 @@ Android へは `npm run sync` の最後の `scripts/apply-native-icon.mjs` が�
 | `GAS_VERSION` | `gas/Code.gs` | `Code.gs` を直したとき |
 | `REQUIRED_GAS_VERSION` | `index.html` | **`Code.gs` の仕様を変えたときだけ** |
 
-現在: `APP_VERSION` 1.5.2 / `GAS_VERSION` 1.2.0 / `REQUIRED_GAS_VERSION` 1.2.0
+現在: `APP_VERSION` 1.6.0 / `GAS_VERSION` 1.3.0 / `REQUIRED_GAS_VERSION` 1.3.0
 
 設定画面が `ping` で GAS 側の番号を取り、`GAS_VERSION < REQUIRED_GAS_VERSION` のときだけ
 再デプロイを促す警告を出す（比較は `cmpVer()`）。

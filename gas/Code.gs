@@ -15,7 +15,7 @@
  * ping で返しており、揃っていないとアプリの設定画面が警告を出す。
  * Code.gs を直したら、ここを上げたうえで GAS エディタに貼り直し、再デプロイすること。
  */
-var GAS_VERSION = '1.2.0';
+var GAS_VERSION = '1.3.0';
 
 var SHEET_NAME = '食品';
 
@@ -43,6 +43,22 @@ var DEFAULT_CATEGORY = 'その他';
 
 /** 期限間近とみなす既定のしきい値（日）。フロント側の設定が優先される */
 var DEFAULT_WARN_DAYS = 3;
+
+// --- Budget Manager（kakeibo）からの取り込み ---
+// BM のスプレッドシートは読むだけで、BM 側には何も書かない。
+// スプレッドシート ID などはスクリプトプロパティに置く（公開 repo に書かない）。
+//   BM_SPREADSHEET_ID  … 必須。BM のスプレッドシートの ID
+//   BM_FOOD_CATEGORIES … 任意。取り込む BM のカテゴリ（カンマ区切り）。既定は「食費」
+//   BM_INBOX_DAYS      … 任意。何日前までの記録を候補にするか。既定は 14
+var BM_TX_SHEET = 'Transactions';
+var DEFAULT_BM_CATEGORIES = '食費';
+var DEFAULT_INBOX_DAYS = 14;
+
+/** 取り込み済み・無視した品目の記録。無ければ最初の書き込みで作る */
+var HISTORY_SHEET = '取込履歴';
+var HISTORY_HEADERS = ['キー', '状態', '更新日時'];
+var INBOX_IMPORTED = 'imported';
+var INBOX_SKIPPED = 'skipped';
 
 
 // ========== エントリポイント ==========
@@ -80,6 +96,8 @@ function dispatch_(body) {
     case 'consume': return setConsumed(body.id, body.consumed !== false);
     case 'delete':  return deleteFood(body.id);
     case 'expiring':return expiringFoods(body.days);
+    case 'inbox':     return listInbox();
+    case 'inboxMark': return markInbox(body.key, body.status);
     default: throw new Error('不明な action: ' + action);
   }
 }
@@ -113,6 +131,10 @@ function addFood(food) {
   rec.updatedAt = nowStr_();
 
   sheet_().appendRow(toRow_(rec));
+
+  // 取込待ちから登録したときは、同じ呼び出しの中で取り込み済みにする。
+  // 別の呼び出しに分けると、登録だけ通って記録が漏れ、同じ品目が候補に残ってしまう
+  if (food.inboxKey) writeHistory_(String(food.inboxKey), INBOX_IMPORTED);
   return decorate_(rec);
 }
 
@@ -180,6 +202,195 @@ function expiringFoods(days) {
   return listFoods(false).filter(function (f) {
     return f.daysLeft !== null && f.daysLeft <= limit;
   });
+}
+
+
+// ========== 取込待ち（Budget Manager の食費を候補にする） ==========
+
+/**
+ * BM の食費の支出を、品目ごとの候補にして返す。
+ *
+ * BM では 1 回の買い物が 1 件で、品目はメモに「、」区切りで書かれている。
+ * そのため 1 件を品目に分け、品目ごとに取り込み済みかを判定する
+ * （一部だけ登録して閉じても、残りだけが候補に残る）。
+ *
+ * @return {{configured: boolean, items: Array<Object>}}
+ *   items は新しい日付順。BM のスプレッドシート ID が未設定なら configured=false
+ */
+function listInbox() {
+  var txs = readBmFoodTransactions_();
+  if (txs === null) return { configured: false, items: [] };
+
+  var handled = readHistoryKeys_();
+  var items = [];
+  txs.forEach(function (tx) {
+    splitMemo_(tx.memo).forEach(function (part) {
+      var key = tx.id + '#' + part.key;
+      if (handled[key]) return;
+      items.push({
+        key: key, txId: tx.id, date: tx.date, store: tx.store,
+        amount: tx.amount, name: part.name
+      });
+    });
+  });
+  return { configured: true, items: items };
+}
+
+/**
+ * 候補の状態を記録する。
+ * @param {string} key 候補のキー
+ * @param {string} status 'skipped'（無視）／ 'imported' ／ ''（記録を消して候補に戻す）
+ */
+function markInbox(key, status) {
+  key = String(key || '');
+  if (!key) throw new Error('key が指定されていません');
+  status = String(status || '');
+  if (status && status !== INBOX_SKIPPED && status !== INBOX_IMPORTED) {
+    throw new Error('不明な status: ' + status);
+  }
+  if (status) writeHistory_(key, status);
+  else clearHistory_(key);
+  return { key: key, status: status };
+}
+
+/**
+ * BM の Transactions から、直近の食費の支出を新しい順に返す。
+ * @return {?Array<Object>} BM_SPREADSHEET_ID が未設定なら null
+ */
+function readBmFoodTransactions_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = String(props.getProperty('BM_SPREADSHEET_ID') || '').trim();
+  if (!id) return null;
+
+  var cats = String(props.getProperty('BM_FOOD_CATEGORIES') || DEFAULT_BM_CATEGORIES)
+    .split(',').map(function (c) { return c.trim(); }).filter(Boolean);
+  var days = Number(props.getProperty('BM_INBOX_DAYS'));
+  if (!isFinite(days) || days <= 0) days = DEFAULT_INBOX_DAYS;
+
+  var sh = SpreadsheetApp.openById(id).getSheetByName(BM_TX_SHEET);
+  if (!sh) throw new Error('BM のスプレッドシートに「' + BM_TX_SHEET + '」シートがありません');
+  if (sh.getLastRow() < 2) return [];
+
+  var values = sh.getDataRange().getValues();
+  var col = {};
+  values[0].forEach(function (h, i) { col[String(h).trim()] = i; });
+  ['id', 'date', 'type', 'category', 'amount', 'place', 'memo'].forEach(function (h) {
+    if (col[h] === undefined) throw new Error('BM の「' + BM_TX_SHEET + '」に「' + h + '」列がありません');
+  });
+
+  // 初回に過去の全記録が候補に溢れないよう、日付で区切る
+  var cutoff = Utilities.formatDate(new Date(Date.now() - days * 86400000), tz_(), 'yyyy-MM-dd');
+
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var r = values[i];
+    var txId = String(r[col.id]).trim();
+    if (!txId) continue;
+    if (String(r[col.type]).trim() !== 'expense') continue;
+    if (cats.indexOf(String(r[col.category]).trim()) < 0) continue;
+
+    var date = dateStr_(r[col.date]);
+    if (!date || date < cutoff) continue;
+
+    out.push({
+      id: txId,
+      date: date,
+      store: String(r[col.place] || '').trim(),
+      amount: Number(r[col.amount]) || 0,
+      memo: String(r[col.memo] || ''),
+      _order: i
+    });
+  }
+
+  // 新しい日付が先。同じ日は BM のシートの並びが後のもの（後から記録したもの）を先に
+  out.sort(function (a, b) {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return b._order - a._order;
+  });
+  return out;
+}
+
+/**
+ * メモを品目に分ける。区切りは「、」（「,」「，」も受ける）。
+ *
+ * key は品目ごとの識別子で、候補の取り込み済み判定に使う。
+ * 位置ではなく名前で持つので、メモの並び替えや追記で他の品目が候補に戻らない。
+ * 同じ名前が 2 つ以上あるときだけ、2 つ目以降に連番を付ける。
+ * メモが空の買い物は、名前の無い品目 1 つとして扱う（登録時に品名を入れてもらう）。
+ */
+function splitMemo_(memo) {
+  var names = String(memo || '').split(/[、,，]/)
+    .map(function (n) { return n.trim(); })
+    .filter(Boolean);
+  if (!names.length) return [{ name: '', key: '' }];
+
+  var seen = {};
+  return names.map(function (n) {
+    seen[n] = (seen[n] || 0) + 1;
+    return { name: n, key: seen[n] === 1 ? n : n + '#' + seen[n] };
+  });
+}
+
+function historySheet_(create) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(HISTORY_SHEET);
+  if (!sh && create) {
+    sh = ss.insertSheet(HISTORY_SHEET);
+    sh.getRange(1, 1, 1, HISTORY_HEADERS.length).setValues([HISTORY_HEADERS]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    // キーは文字列のまま持つ（数字だけの ID が数値に化けないように）
+    sh.getRange(2, 1, sh.getMaxRows() - 1).setNumberFormat('@');
+  }
+  return sh;
+}
+
+/** 記録済みのキーの集合 */
+function readHistoryKeys_() {
+  var sh = historySheet_(false);
+  var set = {};
+  if (!sh || sh.getLastRow() < 2) return set;
+  sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().forEach(function (r) {
+    var k = String(r[0]);
+    if (k) set[k] = true;
+  });
+  return set;
+}
+
+/** キーの状態を書く。既にあれば上書き、無ければ追記 */
+function writeHistory_(key, status) {
+  var sh = historySheet_(true);
+  var row = findHistoryRow_(sh, key);
+  var values = [[key, status, nowStr_()]];
+  if (row > 0) sh.getRange(row, 1, 1, HISTORY_HEADERS.length).setValues(values);
+  else sh.getRange(sh.getLastRow() + 1, 1, 1, HISTORY_HEADERS.length).setValues(values);
+}
+
+function clearHistory_(key) {
+  var sh = historySheet_(false);
+  if (!sh) return;
+  var row = findHistoryRow_(sh, key);
+  if (row > 0) sh.deleteRow(row);
+}
+
+function findHistoryRow_(sh, key) {
+  var last = sh.getLastRow();
+  if (last < 2) return -1;
+  var keys = sh.getRange(2, 1, last - 1, 1).getValues();
+  for (var i = 0; i < keys.length; i++) {
+    if (String(keys[i][0]) === key) return i + 2;
+  }
+  return -1;
+}
+
+/**
+ * 取り込みの確認用。GAS エディタから 1 回手動で実行する。
+ * BM のスプレッドシートへのアクセス許可を求められるので、承認すること
+ * （承認しないと、デプロイしたウェブアプリからは BM のシートを開けない）。
+ */
+function checkInbox() {
+  var r = listInbox();
+  if (!r.configured) return 'BM_SPREADSHEET_ID が未設定です（プロジェクトの設定 → スクリプト プロパティ）';
+  return '候補 ' + r.items.length + ' 件';
 }
 
 
