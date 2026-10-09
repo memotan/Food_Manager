@@ -93,7 +93,8 @@ Source が「GitHub Actions」のままで動く**（GitHub の新しい repo �
 3. `main` ブランチに push すると `Deploy to GitHub Pages` ワークフローが走る
    - 進捗は repo の **Actions** タブで見られる
    - 過去に失敗した実行は **Re-run jobs** で再実行できる
-4. 緑のチェックが付いたら `https://<ユーザー名>.github.io/Food_Manager/` で開ける
+4. 緑のチェックが付いたら `https://<ユーザー名>.github.io/<リポジトリ名>/` で開ける
+   （この repo は `Food_Inv.Manager` なので `https://memotan.github.io/Food_Inv.Manager/`。**リポジトリ名を変えると URL も変わり、旧 URL は 404 になる**。変えたときの直し方は [リポジトリ名を変えたとき](#リポジトリ名を変えたとき)）
 
 ワークフローは静的ファイルをそのまま上げるだけで、ビルド工程はない。
 
@@ -317,8 +318,10 @@ Windows のユーザー名自体が日本語の場合も同様。
 cd C:\
 mkdir dev
 cd dev
-git clone https://github.com/memotan/Food_Manager.git
+git clone https://github.com/memotan/Food_Inv.Manager.git Food_Manager
 ```
+
+末尾の `Food_Manager` は、クローン先のフォルダ名。リポジトリ名と揃える必要はなく、以降の手順のパス（`C:\dev\Food_Manager`）をそのまま使えるように指定している。
 
 現在地のパスは PowerShell で `pwd` を打てば確認できる。
 `setup.bat` は最初にこれを検査し、日本語が含まれていればその場で止まる
@@ -378,7 +381,7 @@ NeoNoting と同じ方式。
 
 ```json
   "server": {
-    "url": "https://memotan.github.io/Food_Manager/",
+    "url": "https://memotan.github.io/Food_Inv.Manager/",
     "androidScheme": "https"
   }
 ```
@@ -390,6 +393,39 @@ NeoNoting と同じ方式。
   WebView が古い `index.html` を抱えていることがあるため、クエリを付けて読み直す
 
 APK を作り直す必要があるのは、`capacitor.config.json` やプラグインを変えたときだけ。
+
+### リポジトリ名を変えたとき
+
+GitHub Pages の URL はリポジトリ名で決まる（`https://<ユーザー名>.github.io/<リポジトリ名>/`）。
+名前を変えると**旧 URL は 404 になり、リダイレクトもされない**。アプリを開いたら 404、というときはこれ。
+
+`server.url` は **APK に焼き込まれる**ので、`index.html` と違って push だけでは直らない。
+**`capacitor.config.json` の `server.url` を新しい URL に直し、APK を作り直して入れ直す。**
+
+```powershell
+cd C:\dev\Food_Manager
+git remote set-url origin https://github.com/memotan/Food_Inv.Manager.git
+git checkout main
+git pull
+cd capacitor-app
+npm run sync
+npm run open
+```
+
+`npm run open` で Android Studio が開くので、Run する（同じ PC でビルドしているなら上書きインストールできる）。
+
+- **`appId`（`com.foodmanager.app`）は変えない。** 変えると別のアプリとしてインストールされ、設定が引き継がれない
+- GAS の URL は **そのまま使える**。localStorage はオリジン（`https://memotan.github.io`）ごとで、
+  リポジトリ名はオリジンに含まれないため、再入力は要らない
+- ブラウザや、ホーム画面に追加した PWA は、新しい URL を開き直す（旧 URL のショートカットは作り直す）
+- `git remote set-url` は、改名前にクローンした場合だけ要る。旧 URL からの `git clone` / `fetch` / `push` は
+  新しい場所へ転送されるので急がなくてよいが、直しておく方が混乱しない。
+  **旧名（`Food_Manager`）で新しいリポジトリを作らないこと。** 作ると転送が切れる
+
+参考: [Renaming a repository - GitHub Docs](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository)、
+[Repository redirects are here! - The GitHub Blog](https://github.blog/news-insights/product-news/repository-redirects-are-here/)
+（Pages のプロジェクトサイトの URL は、改名しても転送されない）
+
 
 > `webDir`（`www/`）は `cap sync` が要求するので残してある。`server.url` があるときは
 > 実際には使われない。

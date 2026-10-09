@@ -106,6 +106,11 @@ action: `list` / `create` / `update` / `consume` / `delete` / `expiring` / `ping
   署名鍵やパスワードを repo に置かないこと（公開 repo。`.gitignore` で弾いてある）
 - WebView が古い `index.html` を抱えることがあるので、設定画面に「最新に更新」
   （`forceReload()`）を置いてある。クエリを付けて別 URL にして読み直す
+- **`server.url` は GitHub Pages の URL で、リポジトリ名で決まる**（現在 `memotan/Food_Inv.Manager`、旧 `Food_Manager`）。
+  名前を変えると旧 URL は 404 になりリダイレクトもされない。**`server.url` は APK に焼き込まれる**ので、
+  `index.html` と違って push では直らず、`capacitor.config.json` を直して **APK の作り直しが要る**。
+  `appId` は変えないこと（別のアプリとして入ってしまう）。手順は README「リポジトリ名を変えたとき」。
+  GAS の URL は localStorage（オリジンごと）に入っていて、オリジンはリポジトリ名を含まないので再入力は要らない
 - **同梱方式から切り替えたので、WebView のオリジンが `https://localhost` から
   `https://memotan.github.io` に変わっている。** localStorage はオリジンごとなので、
   切り替え後の初回は GAS URL の再入力が要る

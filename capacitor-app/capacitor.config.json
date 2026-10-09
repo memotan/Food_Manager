@@ -3,7 +3,7 @@
   "appName": "Food Inv. Manager",
   "webDir": "www",
   "server": {
-    "url": "https://memotan.github.io/Food_Manager/",
+    "url": "https://memotan.github.io/Food_Inv.Manager/",
     "androidScheme": "https"
   },
   "plugins": {

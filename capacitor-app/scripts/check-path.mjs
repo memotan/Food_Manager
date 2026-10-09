@@ -21,7 +21,7 @@ if (/[^\x20-\x7E]/.test(projectDir)) {
     cd C:\\
     mkdir dev
     cd dev
-    git clone https://github.com/memotan/Food_Manager.git
+    git clone https://github.com/memotan/Food_Inv.Manager.git Food_Manager
     cd Food_Manager\\capacitor-app
     .\\setup.bat
 
