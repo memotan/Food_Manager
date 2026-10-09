@@ -47,12 +47,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .tabs{display:flex;gap:4px;flex:1;min-width:0}
 .sortbtn{flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:16px;color:var(--text3);font-size:11px;padding:5px 10px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all .15s}
 .sortbtn:active{background:var(--surface2)}
-/* タブが 4 つになったので、狭い端末では並べ替えボタンを文字なしにして収める（320px まで確認） */
-@media (max-width:359px){#sortLabel{display:none}}
+/* タブが 5 つあるので、400px 未満では並べ替えボタンを文字なしにして収める（320〜480px で確認）。
+   タブの左右の余白も、幅に応じて詰める（.tab の padding） */
+@media (max-width:399px){#sortLabel{display:none}}
 .sortbtn.on{border-color:var(--accent);color:var(--text2)}
-.tab{position:relative;padding:6px 14px;white-space:nowrap;border-radius:20px;font-size:14px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:inherit;transition:all .15s}
+.tab{position:relative;padding:6px clamp(5px,2vw,14px);white-space:nowrap;border-radius:20px;font-size:14px;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:inherit;transition:all .15s}
 .tab.active{background:var(--text);color:var(--bg);font-weight:500}
-.tab .tbadge{position:absolute;top:-2px;right:2px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--danger);color:#fff;font-size:10px;line-height:16px;font-weight:600}
+.tab .tbadge{position:absolute;top:-6px;right:-5px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--danger);color:#fff;font-size:10px;line-height:16px;font-weight:600}
 .tab .tbadge.restock{background:var(--info)}
 .tab .tbadge.inbox{background:var(--accent)}
 
@@ -97,18 +98,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .fmeta{font-size:12px;color:var(--text3);margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
 .fdate{font-family:var(--mono)}
 .fkind{color:var(--text2)}
+.fplace{color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:11px;line-height:17px}
 
 .badge{flex-shrink:0;font-size:11px;font-weight:600;padding:4px 10px;border-radius:10px;background:var(--surface2);color:var(--text2);white-space:nowrap}
 .badge.expired{background:var(--danger-bg);color:var(--danger-fg)}
 .badge.soon{background:var(--warn-bg);color:var(--warn-fg)}
 
-/* 一覧の区切り見出し（買い足す / ジャンル） */
+/* 一覧の区切り見出し（ジャンル / 取込の買い物） */
 .sec{display:flex;align-items:center;gap:8px;padding:14px 2px 2px;font-size:12px;color:var(--text4)}
 .sec:first-child{padding-top:0}
 .sec b{font-weight:600;color:var(--text3)}
 .sec .n{font-family:var(--mono);font-size:11px}
 .sec::after{content:'';flex:1;height:1px;background:var(--border)}
-.sec.restock b{color:var(--info-fg)}
 
 /* 在庫を切らしているもの。期限の色とは別の見た目にする */
 .food-card.restock{border-left-color:var(--info);border-left-style:dashed}
@@ -398,7 +399,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 // ========== 定数 ==========
 // アプリ（この index.html）のバージョン。GitHub Pages への push で自動更新されるので、
 // 直したら気兼ねなく上げてよい
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 
 // このアプリが動くのに必要な gas/Code.gs の最低バージョン。
 // GAS は手で貼り直して再デプロイする必要があるため、これを下回っていたら設定画面が警告を出す。
@@ -410,7 +411,10 @@ const PLACES = ['冷蔵', '冷凍', '常温'];
 // Budget Manager から取り込んだ、まだ保管場所の決まっていない品目の置き場。
 // 保管場所ではないので PLACES には入れず、タブの並びだけに加える
 const INBOX = '取込';
-const TABS = PLACES.concat(INBOX);
+// 数量 0 の食品を、保管場所をまたいで 1 か所に集めるタブ。これも保管場所ではないので
+// PLACES には入れない（create が弾く）。保管場所のタブにはこの食品を出さない
+const RESTOCK = '買い足す';
+const TABS = PLACES.concat(RESTOCK, INBOX);
 const KINDS  = ['賞味期限', '消費期限'];
 
 // ジャンル。gas/Code.gs の CATEGORIES と同じ並びにすること
@@ -438,6 +442,9 @@ let sheetQty = 1;           // モーダルで編集中の数量
 let sheetCat = DEFAULT_CATEGORY;  // モーダルで編集中のジャンル
 let sortMode = 'expiry';    // 'expiry'（期限順）か 'category'（ジャンル順）
 const qtyTimers = {};       // 一覧での増減をまとめて保存するためのタイマー
+// 数量を触り始めた時点で「買い足す」に入っていたか（id → boolean）。
+// 0 をまたぐとタブが変わるが、連打の途中でカードが消えないよう、保存が済むまで動かさない
+const qtyHold = {};
 let calYear = 0, calMonth = -1;   // カレンダーが表示している年と月（0始まり）
 let calSelected = '';             // カレンダーで選んでいる日 yyyy-MM-dd
 let lastSwipeAt = 0;        // スワイプ直後のタップを編集と取り違えないため
@@ -783,6 +790,28 @@ function renderAll() {
 /** 在庫を切らしている（数量0）＝「買い足す」対象か */
 function isRestock(f) { return Number(f.quantity) === 0; }
 
+/**
+ * 「買い足す」タブに出す食品か。基本は数量 0 だが、一覧で数量を触っている間は
+ * 触り始めた時点の所属のままにする（＋を続けて押す途中でカードが消えないように）。
+ */
+function inRestock(f) {
+  const id = String(f.id);
+  return id in qtyHold ? qtyHold[id] : isRestock(f);
+}
+
+/** 保管場所のタブに出す食品。切らしているものは「買い足す」へ行くので含めない */
+function stockIn(place) { return foodsIn(place).filter(f => !inRestock(f)); }
+
+/** 「買い足す」タブに出す食品。保管場所の並び順で、同じ場所の中は登録順（sort は安定） */
+function restockFoods() {
+  return foods
+    .filter(f => !f.consumed && inRestock(f))
+    .sort((a, b) => PLACES.indexOf(a.place) - PLACES.indexOf(b.place));
+}
+
+/** その食品が見えるタブ。追加・編集のあと、そのタブを見せるのに使う */
+function tabOf(f) { return isRestock(f) ? RESTOCK : f.place; }
+
 /** シート由来の値が空や未知でも、必ず既定のジャンルに寄せる */
 function catOf(f) {
   const c = String(f.category || '').trim();
@@ -803,8 +832,9 @@ function renderSortBtn() {
 }
 
 function renderTabs() {
-  // 取込タブでは並べ替えが効かないので隠す（幅は保って、タブが動かないようにする）
-  document.getElementById('sortBtn').style.visibility = currentPlace === INBOX ? 'hidden' : '';
+  // 取込・買い足すタブでは並べ替えが効かないので隠す（幅は保って、タブが動かないようにする）
+  const noSort = currentPlace === INBOX || currentPlace === RESTOCK;
+  document.getElementById('sortBtn').style.visibility = noSort ? 'hidden' : '';
 
   document.getElementById('tabs').innerHTML = TABS.map(p => {
     if (p === INBOX) {
@@ -812,15 +842,16 @@ function renderTabs() {
       const badge = n ? `<span class="tbadge inbox">${n}</span>` : '';
       return `<button class="tab${p === currentPlace ? ' active' : ''}" onclick="switchPlace('${p}')" title="Budget Manager から取り込む">${escHtml(p)}${badge}</button>`;
     }
-    const items = foodsIn(p);
-    // 手元に無いもの（数量0）は期限の警告に数えない。切らしている以上、傷みようがない
-    const alerts = items.filter(f => !isRestock(f))
+    if (p === RESTOCK) {
+      const n = restockFoods().length;
+      const badge = n ? `<span class="tbadge restock">${n}</span>` : '';
+      return `<button class="tab${p === currentPlace ? ' active' : ''}" onclick="switchPlace('${p}')" title="数量が 0 の食品を、保管場所をまたいで集める">${escHtml(p)}${badge}</button>`;
+    }
+    // 切らしているもの（数量0）は「買い足す」へ行くので、ここには含まれない。
+    // 手元に無いものは傷みようがないので、期限の警告にも数えない
+    const alerts = stockIn(p)
       .filter(f => { const s = statusOf(f); return s === 'expired' || s === 'soon'; }).length;
-    const restock = items.filter(isRestock).length;
-
-    // 期限の警告を優先し、それが無いときだけ「買い足す」の件数を出す
-    const badge = alerts ? `<span class="tbadge">${alerts}</span>`
-                : restock ? `<span class="tbadge restock">${restock}</span>` : '';
+    const badge = alerts ? `<span class="tbadge">${alerts}</span>` : '';
     return `<button class="tab${p === currentPlace ? ' active' : ''}" onclick="switchPlace('${p}')">${escHtml(p)}${badge}</button>`;
   }).join('');
 }
@@ -900,41 +931,54 @@ function sectionHtml(label, count, cls) {
 
 function renderList() {
   if (currentPlace === INBOX) { renderInbox(); return; }
+  if (currentPlace === RESTOCK) { renderRestock(); return; }
 
-  const list = foodsIn(currentPlace);
+  // 切らしているもの（数量0）は「買い足す」タブにあるので、ここには出さない
+  const list = stockIn(currentPlace);
   const el = document.getElementById('foodList');
 
   if (!list.length) {
-    el.innerHTML = `<div class="empty-state">${gasUrl
-      ? escHtml(currentPlace) + 'に登録された食品はありません。<br>下のボタンから追加できます。'
-      : 'まず設定からGASのウェブアプリURLを<br>登録してください。'}</div>`;
+    let msg;
+    if (!gasUrl) msg = 'まず設定からGASのウェブアプリURLを<br>登録してください。';
+    else if (foodsIn(currentPlace).length) {
+      msg = escHtml(currentPlace) + 'に在庫のある食品はありません。<br>切らしているものは「' + RESTOCK + '」タブにあります。';
+    } else msg = escHtml(currentPlace) + 'に登録された食品はありません。<br>下のボタンから追加できます。';
+    el.innerHTML = `<div class="empty-state">${msg}</div>`;
     return;
   }
 
-  // 切らしているものは、並び替えの指定にかかわらず常に一番上へ出す
-  const restock = list.filter(isRestock);
-  const inStock = list.filter(f => !isRestock(f));
-
   const parts = [];
-  if (restock.length) {
-    parts.push(sectionHtml('買い足す', restock.length, 'restock'));
-    parts.push(...restock.map(cardHtml));
-  }
-
   if (sortMode === 'category') {
     // CATEGORIES の並びで区切る。中身は期限が近い順のまま
     CATEGORIES.forEach(c => {
-      const items = inStock.filter(f => catOf(f) === c);
+      const items = list.filter(f => catOf(f) === c);
       if (!items.length) return;
       parts.push(sectionHtml(c, items.length));
-      parts.push(...items.map(cardHtml));
+      parts.push(...items.map(f => cardHtml(f)));
     });
   } else {
-    if (restock.length && inStock.length) parts.push(sectionHtml('在庫あり', inStock.length));
-    parts.push(...inStock.map(cardHtml));
+    parts.push(...list.map(f => cardHtml(f)));
   }
 
   el.innerHTML = parts.join('');
+}
+
+/**
+ * 買い足すタブ。保管場所をまたいで数量 0 の食品を集める。
+ * 期限は関係ないので、並べ替えは効かせない。どこにあった食品か分からなくなるので、
+ * カードに保管場所を添える。
+ */
+function renderRestock() {
+  const el = document.getElementById('foodList');
+  const list = restockFoods();
+
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state">${gasUrl
+      ? '買い足すものはありません。<br>数量を 0 にした食品が、保管場所を問わず<br>ここに集まります。'
+      : 'まず設定からGASのウェブアプリURLを<br>登録してください。'}</div>`;
+    return;
+  }
+  el.innerHTML = list.map(f => cardHtml(f, true)).join('');
 }
 
 /** 取込タブ。買い物（BM の 1 件）ごとに見出しを置き、品目をカードで並べる */
@@ -988,7 +1032,7 @@ function inboxCardHtml(it) {
     </div>`;
 }
 
-function cardHtml(f) {
+function cardHtml(f, showPlace) {
   const d = daysUntil(f.expiryDate);
   const st = statusOf(f);
   // 切らしているものは期限の色分けをしない（手元に無いので傷みようがない）
@@ -1006,6 +1050,8 @@ function cardHtml(f) {
 
   // 期限を登録していない食品もあるので、あるものだけを並べる
   const meta = [];
+  // 買い足すタブは保管場所をまたぐので、どこの食品かを先頭に添える
+  if (showPlace) meta.push(`<span class="fplace">${escHtml(f.place)}</span>`);
   if (f.expiryDate) {
     meta.push(`<span class="fkind">${escHtml(f.kind)} <span class="fdate">${escHtml(f.expiryDate)}</span></span>`);
   }
@@ -1212,7 +1258,7 @@ async function saveSheet() {
 async function applyCreate(food) {
   const tmp = Object.assign({ id: 'tmp_' + Date.now(), consumed: false, pending: true }, food);
   foods.push(tmp);
-  currentPlace = food.place;
+  currentPlace = tabOf(food);   // 数量 0 で追加したなら、買い足すタブを見せる
   renderAll();
   setSyncState('busy', '保存中...');
 
@@ -1248,7 +1294,7 @@ async function applyCreateFromInbox(food, item) {
     const i = foods.findIndex(f => f.id === tmp.id);
     if (i >= 0) foods[i] = created;
     setSyncState('ok', '保存しました ' + nowHm());
-    showToast(food.place + 'に追加しました');
+    showToast(tabOf(food) + 'に追加しました');   // 数量 0 で登録したなら、載るのは買い足す
   } catch (e) {
     foods = foods.filter(f => f.id !== tmp.id);
     inbox = before;
@@ -1292,7 +1338,7 @@ async function applyUpdate(id, patch) {
 
   const before = foods[i];
   foods[i] = Object.assign({}, before, patch, { pending: true });
-  currentPlace = patch.place;   // 保管場所を変えたら、そのタブを見せる
+  currentPlace = tabOf(foods[i]);   // 直した食品が見えるタブを見せる（切らしているなら買い足す）
   renderAll();
   setSyncState('busy', '保存中...');
 
@@ -1346,8 +1392,12 @@ function bumpCardQty(id, delta) {
   const next = Math.max(0, (Number(foods[i].quantity) || 0) + delta);
   if (next === Number(foods[i].quantity)) return;
 
+  // 触り始めた時点の所属を覚える。0 をまたいでも、保存が済むまでカードを動かさない
+  const key = String(id);
+  if (!(key in qtyHold)) qtyHold[key] = isRestock(foods[i]);
+
   foods[i] = Object.assign({}, foods[i], { quantity: next });
-  renderList();   // 数量は並び順にもタブのバッジにも影響しないので一覧だけでよい
+  renderList();   // 所属は保存が済むまで動かさないので、バッジも並びも変わらず一覧だけでよい
 
   clearTimeout(qtyTimers[id]);
   setSyncState('busy', '保存中...');
@@ -1357,19 +1407,34 @@ function bumpCardQty(id, delta) {
 /** まとめ保存の本体。失敗したらシートから取り直して、ずれたままにしない */
 async function saveQty(id) {
   delete qtyTimers[id];
-  const food = foods.find(f => String(f.id) === String(id));
-  if (!food) return;
+  const key = String(id);
+  const food = foods.find(f => String(f.id) === key);
+  if (!food) { delete qtyHold[key]; return; }
 
   try {
     const updated = await gasCall({ action: 'update', food: { id: id, quantity: food.quantity } });
-    const j = foods.findIndex(f => String(f.id) === String(id));
+    const j = foods.findIndex(f => String(f.id) === key);
     // 応答を待つ間にさらに押されていることがあるので、数量は手元の値を残す
     if (j >= 0) foods[j] = Object.assign({}, updated, { quantity: foods[j].quantity });
     setSyncState('ok', '保存しました ' + nowHm());
   } catch (e) {
+    delete qtyHold[key];
     setSyncState('err', '保存失敗: ' + e.message);
     showToast('数量を保存できませんでした: ' + e.message);
     syncFromSheet();
+    return;
+  }
+
+  // 続けて押されていなければ、ここで所属を確定する。0 をまたいでいたら別のタブへ移る
+  if (qtyTimers[id]) return;
+  const cur = foods.find(f => String(f.id) === key);
+  const wasRestock = qtyHold[key];
+  delete qtyHold[key];
+  if (cur && wasRestock !== isRestock(cur)) {
+    showToast(isRestock(cur)
+      ? cur.name + ' を「' + RESTOCK + '」へ移しました'
+      : cur.name + ' を ' + cur.place + ' に戻しました');
+    renderAll();
   }
 }
 
